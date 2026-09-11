@@ -4,6 +4,7 @@ import type {
   BookingApiErrorShape,
   BookingErrorCode,
 } from '@/types'
+import { API_BASE_URL } from '@/config/api'
 
 /**
  * Airbnb reservation-details → WhatsApp (Phase 7).
@@ -13,7 +14,7 @@ import type {
  * the recipient number for a click-to-chat link. It never creates a website
  * booking and never generates an AURA booking ID.
  */
-export const AIRBNB_ENDPOINT = '/api/airbnb/details'
+export const AIRBNB_ENDPOINT = `${API_BASE_URL}/api/airbnb/details`
 
 export class AirbnbApiError extends Error {
   status: number

@@ -4,6 +4,7 @@ import type {
   BookingFormData,
   BookingResponse,
 } from '@/types'
+import { API_BASE_URL } from '@/config/api'
 
 /**
  * Public booking service.
@@ -17,7 +18,7 @@ import type {
  *
  * The Vite dev server proxies `/api` to the API server (see vite.config.ts).
  */
-export const BOOKINGS_ENDPOINT = '/api/bookings'
+export const BOOKINGS_ENDPOINT = `${API_BASE_URL}/api/bookings`
 
 export class BookingApiError extends Error {
   status: number

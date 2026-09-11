@@ -1,4 +1,5 @@
 import type { AvailabilityCheckRequest, AvailabilityResult, PropertySlug } from '@/types'
+import { API_BASE_URL } from '@/config/api'
 
 /**
  * Public availability service.
@@ -15,7 +16,7 @@ import type { AvailabilityCheckRequest, AvailabilityResult, PropertySlug } from 
  *
  * The Vite dev server proxies `/api` to the API server (see vite.config.ts).
  */
-export const AVAILABILITY_ENDPOINT = '/api/availability'
+export const AVAILABILITY_ENDPOINT = `${API_BASE_URL}/api/availability`
 
 export interface BlockedDatesQuery {
   propertyId: PropertySlug
