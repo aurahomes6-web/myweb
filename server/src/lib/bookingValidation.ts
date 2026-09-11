@@ -104,7 +104,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function validateGuest(raw: unknown, index: number): ValidationIssue[] {
+export function validateGuest(raw: unknown, index: number): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const prefix = `guests[${index}]`
 
@@ -252,7 +252,7 @@ export function validateCreateBooking(body: unknown): BookingInputResult {
  * check — similar names are fine as long as Aadhaars differ), and a guest
  * record must not be completely identical to another guest.
  */
-function findDuplicateGuests(guests: BookingGuestInput[]): ValidationIssue[] {
+export function findDuplicateGuests(guests: BookingGuestInput[]): ValidationIssue[] {
   const issues: ValidationIssue[] = []
 
   const aadhaarOwners = new Map<string, number>()

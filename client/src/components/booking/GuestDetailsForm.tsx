@@ -19,6 +19,7 @@ import type {
   Property,
 } from '@/types'
 import { BookingApiError, createBooking } from '@/services/bookings'
+import { GENDER_OPTIONS } from '@/lib/gender'
 
 interface GuestDetailsFormProps {
   property: Property
@@ -41,13 +42,6 @@ interface SubmitBanner {
 }
 
 const INITIAL_ROW: GuestRow = { fullName: '', aadhaar: '', gender: '', age: '' }
-
-const GENDER_OPTIONS: Array<{ value: GuestGenderValue; label: string }> = [
-  { value: 'MALE', label: 'Male' },
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'OTHER', label: 'Other' },
-  { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
-]
 
 const inputBase =
   'input-glass w-full px-4 py-3.5 text-sm text-text-primary placeholder:text-text-muted/50 disabled:cursor-not-allowed disabled:opacity-55'

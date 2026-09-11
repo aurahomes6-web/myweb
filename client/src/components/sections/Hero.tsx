@@ -100,8 +100,30 @@ export default function Hero() {
             </motion.div>
 
             <motion.div
+              {...fade(0.95)}
+              className="mt-9 flex flex-col items-stretch gap-4 rounded-2xl border border-cyan/20 bg-surface-100/30 p-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+            >
+              <div>
+                <p className="text-sm font-semibold text-text-primary">Booked via Airbnb?</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-text-muted">
+                  Already have an Airbnb reservation? Send your stay details to us.
+                </p>
+              </div>
+              <Link
+                to="/airbnb"
+                className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-cyan/40 px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-bright transition-all duration-300 hover:bg-cyan/10 hover:shadow-glow-cyan"
+              >
+                Via Airbnb
+                <ArrowRight
+                  size={14}
+                  className="transition-transform duration-300 group-hover:translate-x-1"
+                />
+              </Link>
+            </motion.div>
+
+            <motion.div
               {...fade(1.05)}
-              className="mt-12 flex items-center gap-7 text-xs text-text-muted sm:gap-10"
+              className="mt-10 flex items-center gap-7 text-xs text-text-muted sm:gap-10"
             >
               <div className="flex items-center gap-2.5">
                 <Sparkles size={14} className="text-purple-bright" />

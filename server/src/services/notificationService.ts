@@ -1,6 +1,7 @@
 import { GuestGender } from '../generated/prisma/enums.js'
 import { maskAadhaar } from '../lib/bookingValidation.js'
-import { nightsBetween } from '../lib/dateUtils.js'
+import type { AirbnbDetailsInput } from '../lib/airbnbValidation.js'
+import { formatDateKey, nightsBetween } from '../lib/dateUtils.js'
 
 /**
  * Booking notifications.
@@ -94,6 +95,47 @@ export function buildWhatsAppMessage(payload: BookingNotificationPayload): strin
     ``,
     `Please carry a valid Government-issued ID for all guests at check-in.`,
   ].join('\n')
+}
+
+/**
+ * Compose the Airbnb reservation message for WhatsApp (Phase 7).
+ * Aadhaar numbers are always masked to the last 4 digits.
+ */
+export function buildAirbnbWhatsAppMessage(payload: AirbnbDetailsInput): string {
+  const lines: string[] = ['🏠 AURA HOMES', 'AIRBNB RESERVATION', '']
+
+  const flight = [
+    `Airbnb Reservation No: ${payload.reservationNumber}`,
+    `Guest Name: ${payload.guestName}`,
+    `Phone: ${payload.primaryPhone}`,
+    '',
+    `Check-in: ${formatDateKey(payload.checkIn)}`,
+    `Check-out: ${formatDateKey(payload.checkOut)}`,
+    `Guests: ${payload.guestCount}`,
+    '',
+    'GUEST DETAILS',
+    '',
+  ]
+  lines.push(...flight)
+
+  payload.guests.forEach((guest, index) => {
+    lines.push(
+      `Guest ${index + 1}`,
+      `Name: ${guest.fullName}`,
+      `Aadhaar: ${maskAadhaar(guest.aadhaarNumber)}`,
+      `Gender: ${GENDER_DISPLAY[guest.gender]}`,
+      `Age: ${guest.age}`,
+      ''
+    )
+  })
+
+  lines.push(
+    '────────────────',
+    'AURA HOMES',
+    'Airbnb reservation details submitted.'
+  )
+
+  return lines.join('\n')
 }
 
 /** Current WhatsApp configuration without sending anything. */

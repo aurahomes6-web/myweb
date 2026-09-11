@@ -9,6 +9,7 @@ import PropertiesPage from '@/pages/PropertiesPage'
 import PropertyDetailPage from '@/pages/PropertyDetailPage'
 import BookingPage from '@/pages/BookingPage'
 import ConfirmationPage from '@/pages/ConfirmationPage'
+import AirbnbBookingPage from '@/pages/AirbnbBookingPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function AppShell() {
@@ -31,6 +32,7 @@ function AppShell() {
             <Route path="/properties/:slug" element={<PropertyDetailPage />} />
             <Route path="/book" element={<BookingPage />} />
             <Route path="/confirmation" element={<ConfirmationPage />} />
+            <Route path="/airbnb" element={<AirbnbBookingPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </PageTransition>

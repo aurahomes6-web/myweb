@@ -1,0 +1,50 @@
+import type {
+  AirbnbDetailsResult,
+  AirbnbFormData,
+  BookingApiErrorShape,
+  BookingErrorCode,
+} from '@/types'
+
+/**
+ * Airbnb reservation-details → WhatsApp (Phase 7).
+ *
+ * This flow is stateless: `POST /api/airbnb/details` validates the customer's
+ * Airbnb reservation information and returns the MASKED WhatsApp message plus
+ * the recipient number for a click-to-chat link. It never creates a website
+ * booking and never generates an AURA booking ID.
+ */
+export const AIRBNB_ENDPOINT = '/api/airbnb/details'
+
+export class AirbnbApiError extends Error {
+  status: number
+  code: BookingErrorCode
+  details?: BookingApiErrorShape['details']
+
+  constructor(shape: BookingApiErrorShape & { status: number }) {
+    super(shape.message)
+    this.name = 'AirbnbApiError'
+    this.status = shape.status
+    this.code = shape.error
+    this.details = shape.details
+  }
+}
+
+export async function submitAirbnbDetails(request: AirbnbFormData): Promise<AirbnbDetailsResult> {
+  const response = await fetch(AIRBNB_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  const json: unknown = await response.json().catch(() => null)
+  if (!response.ok) {
+    const body = (json ?? null) as Partial<BookingApiErrorShape> | null
+    throw new AirbnbApiError({
+      status: response.status,
+      error: body?.error ?? 'INTERNAL_ERROR',
+      message: body?.message ?? 'Something went wrong. Please try again.',
+      details: body?.details,
+    })
+  }
+  return json as AirbnbDetailsResult
+}

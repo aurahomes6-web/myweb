@@ -6,12 +6,14 @@
  *   - real Supabase credentials in server/.env (never committed)
  *
  * Runs the real double-booking / conflict flow against the live database:
- *   1. Create a booking → expect 201 CONFIRMED, no Aadhaar in the response.
+ *   1. Create a booking → expect 201 CONFIRMED, masked-only Aadhaar.
  *   2. Overlapping stay for the same property → expect 409 PROPERTY_UNAVAILABLE.
  *   3. Adjacent stay (check-in == prior check-out) → expect 201.
- *   4. Public lookup → expect booking + safe guest list, no Aadhaar.
- *   5. Cancel a booking directly, re-book the same dates → expect 201.
- *   6. Cleanup every test booking it created.
+ *   4. Public lookup → expect booking + safe guest list, masked-only Aadhaar.
+ *   5. Airbnb details flow → message prepared, NO website booking created.
+ *   6. Duplicate Aadhaar across guests → expect 400 VALIDATION_ERROR.
+ *   7. Cancel a booking directly, re-book the same dates → expect 201.
+ *   8. Cleanup every test booking it created.
  */
 import 'dotenv/config'
 import assert from 'node:assert/strict'
@@ -129,7 +131,40 @@ async function run(): Promise<void> {
   assert.equal(lookupBody.guests[0].aadhaarNumberMasked, '********9012')
   console.log('PASS  4. public lookup returns safe guests with only masked Aadhaar')
 
-  // 5. Duplicate Aadhaar across guests is rejected by the backend.
+  // 5. Airbnb details flow prepares a WhatsApp message and creates NO website booking.
+  const bookingCountBefore = await prisma.booking.count()
+  const airbnb = await request('/api/airbnb/details', {
+    method: 'POST',
+    body: JSON.stringify({
+      reservationNumber: 'HMY9TR4US9',
+      guestName: 'Aarav Mehta',
+      primaryPhone: '9812345678',
+      checkIn: start,
+      checkOut: end,
+      guestCount: 2,
+      guests: [
+        { fullName: 'Aarav Mehta', aadhaarNumber: '123456789012', gender: 'Male', age: 34 },
+        { fullName: 'Ishita Mehta', aadhaarNumber: '987654321098', gender: 'Female', age: 31 },
+      ],
+    }),
+  })
+  assert.equal(airbnb.status, 200, 'Airbnb details should be accepted (200)')
+  const airbnbBody = airbnb.body as { status: string; message: string; recipient?: string }
+  assert.equal(airbnbBody.status, 'ok')
+  assert.equal(airbnbBody.recipient, '919481130067')
+  assert.ok(airbnbBody.message.includes('AIRBNB RESERVATION'), 'airbnb message header missing')
+  assert.ok(airbnbBody.message.includes('HMY9TR4US9'), 'airbnb reservation number missing')
+  assert.ok(airbnbBody.message.includes('Aadhaar: ********9012'), 'masked aadhaar missing')
+  assert.ok(!airbnbBody.message.includes('123456789012'), 'full aadhaar leaked into airbnb message')
+  const bookingCountAfter = await prisma.booking.count()
+  assert.equal(
+    bookingCountAfter,
+    bookingCountBefore,
+    'Airbnb flow must NOT create a website booking record'
+  )
+  console.log('PASS  5. airbnb details prepared for WhatsApp without creating a booking')
+
+  // 6. Duplicate Aadhaar across guests is rejected by the backend.
   const duplicateAadhaar = createPayload(property.slug, start, end)
   duplicateAadhaar.guests[1] = { ...duplicateAadhaar.guests[0] }
   const dupResponse = await request('/api/bookings', {
@@ -143,9 +178,9 @@ async function run(): Promise<void> {
     (dupBody.details ?? []).some((d) => /unique Aadhaar/i.test(d.message)),
     `expected unique-Aadhaar validation detail, got ${JSON.stringify(dupBody)}`
   )
-  console.log('PASS  5. duplicate Aadhaar across guests rejected with 400 VALIDATION_ERROR')
+  console.log('PASS  6. duplicate Aadhaar across guests rejected with 400 VALIDATION_ERROR')
 
-  // 6. Cancelled bookings free their dates.
+  // 7. Cancelled bookings free their dates.
   await prisma.booking.update({ where: { code: firstCode }, data: { status: BookingStatus.CANCELLED } })
   const rebook = await request('/api/bookings', {
     method: 'POST',
@@ -154,7 +189,7 @@ async function run(): Promise<void> {
   assert.equal(rebook.status, 201, 'Re-booking cancelled dates should succeed (201)')
   const rebookCode = (rebook.body as { code: string }).code
   createdCodes.push(rebookCode)
-  console.log(`PASS  6. cancelled booking freed dates; re-booked ${rebookCode}`)
+  console.log(`PASS  7. cancelled booking freed dates; re-booked ${rebookCode}`)
 
   console.log('\nALL LIVE SMOKE ASSERTIONS PASSED against the real Supabase database.')
 }

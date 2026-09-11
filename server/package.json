@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json --noEmit",
-    "test": "tsx --test tests/bookingCode.test.ts tests/dateRange.test.ts tests/bookingValidation.test.ts tests/notificationService.test.ts",
+    "test": "tsx --test tests/bookingCode.test.ts tests/dateRange.test.ts tests/bookingValidation.test.ts tests/notificationService.test.ts tests/airbnbValidation.test.ts",
     "test:live": "tsx scripts/smoke-booking.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

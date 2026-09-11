@@ -5,6 +5,7 @@ import healthRoutes from './routes/health.js'
 import availabilityRoutes from './routes/availability.js'
 import bookingRoutes from './routes/bookings.js'
 import propertyRoutes from './routes/properties.js'
+import airbnbRoutes from './routes/airbnb.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -16,6 +17,7 @@ app.use('/api', healthRoutes)
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/bookings', bookingRoutes)
 app.use('/api/properties', propertyRoutes)
+app.use('/api/airbnb', airbnbRoutes)
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err)

@@ -1,12 +1,6 @@
-import type { BookingResponse, GuestGenderValue } from '@/types'
+import type { BookingResponse } from '@/types'
 import { nightsBetween } from './date'
-
-const GENDER_LABEL: Record<GuestGenderValue, string> = {
-  MALE: 'Male',
-  FEMALE: 'Female',
-  OTHER: 'Other',
-  PREFER_NOT_TO_SAY: 'Prefer not to say',
-}
+import { GENDER_LABEL } from './gender'
 
 export { GENDER_LABEL }
 

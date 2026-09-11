@@ -39,6 +39,14 @@ export function todayKey(): string {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** Human-readable date for message bodies, e.g. "15 Sep 2026". */
+export function formatDateKey(dateKey: string): string {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+  return `${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]} ${date.getUTCFullYear()}`
+}
+
 /** Iterate every YYYY-MM-DD key in the inclusive range [from, to]. */
 export function eachDateInRange(from: string, to: string): string[] {
   const dates: string[] = []

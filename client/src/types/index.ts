@@ -118,6 +118,34 @@ export interface HealthResponse {
   uptime: number
 }
 
+/* ---------------- Airbnb details → WhatsApp (Phase 7) ---------------- */
+
+export interface AirbnbGuestPayload {
+  fullName: string
+  aadhaarNumber: string
+  gender: GuestGenderValue
+  age: number
+}
+
+/** Form data collected from a customer who already booked via Airbnb. */
+export interface AirbnbFormData {
+  reservationNumber: string
+  guestName: string
+  primaryPhone: string
+  checkIn: string
+  checkOut: string
+  guestCount: number
+  guests: AirbnbGuestPayload[]
+}
+
+/** Stateless server response: the masked message is built server-side. */
+export interface AirbnbDetailsResult {
+  status: 'ok'
+  reservationNumber: string
+  message: string
+  recipient?: string
+}
+
 /* ---------------- Availability (frontend service contract) ---------------- */
 
 export interface AvailabilityCheckRequest {
