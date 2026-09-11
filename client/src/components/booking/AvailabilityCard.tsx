@@ -58,7 +58,15 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkIn, checkOut, guests])
 
-  const bookUrl = `?property=${property.slug}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`
+  const bookUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      property: property.slug,
+      checkIn,
+      checkOut,
+      guests: String(guests),
+    })
+    return `/book?${params.toString()}`
+  }, [property.slug, checkIn, checkOut, guests])
 
   function onDateChange(range: { checkIn: string; checkOut: string }) {
     setCheckIn(range.checkIn)
@@ -264,7 +272,7 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
       </div>
 
       <p className="border-t border-surface-300/20 px-6 py-3 text-center text-[11px] tracking-wide text-text-muted">
-        Demo availability · powered by mock data
+        Live availability · checked against the AURA HOMES API
       </p>
     </section>
   )

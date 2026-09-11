@@ -1,23 +1,19 @@
 import type { AvailabilityCheckRequest, AvailabilityResult, PropertySlug } from '@/types'
-import {
-  getMockBlockedDates,
-  mockCheckAvailability,
-} from '@/services/mockAvailability'
 
 /**
  * Public availability service.
  *
- * The UI imports availability from this module only. Once the real booking
- * engine ships, the mock resolution below is replaced with the API:
+ * The UI imports availability from this module only. Requests flow to the
+ * AURA HOMES API (Express), which answers from the Supabase-hosted PostgreSQL
+ * database via Prisma:
  *
- *   GET /api/availability?propertyId=:propertyId&checkIn=:checkIn&checkOut=:checkOut
+ *   GET /api/availability?propertyId=:propertyId&checkIn=:checkIn&checkOut=:checkOut&guests=:guests
  *     → { available: boolean, nights: number }
  *
  *   GET /api/availability/blocked?propertyId=:propertyId&from=:from&to=:to
  *     → { blockedDates: string[] }
  *
- * The request/response shapes already match those contracts, so no component
- * changes are required when the swap happens.
+ * The Vite dev server proxies `/api` to the API server (see vite.config.ts).
  */
 export const AVAILABILITY_ENDPOINT = '/api/availability'
 
@@ -27,12 +23,39 @@ export interface BlockedDatesQuery {
   to: string
 }
 
-export function checkAvailability(
-  request: AvailabilityCheckRequest
-): Promise<AvailabilityResult> {
-  return mockCheckAvailability(request)
+interface BlockedDatesResponse {
+  blockedDates: string[]
 }
 
-export function fetchBlockedDates(query: BlockedDatesQuery): Promise<string[]> {
-  return Promise.resolve(getMockBlockedDates(query.propertyId, query.from, query.to))
+async function unwrap<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    throw new Error(`Availability request failed with status ${response.status}`)
+  }
+  return (await response.json()) as T
+}
+
+export async function checkAvailability(
+  request: AvailabilityCheckRequest
+): Promise<AvailabilityResult> {
+  const params = new URLSearchParams({
+    propertyId: request.propertyId,
+    checkIn: request.checkIn,
+    checkOut: request.checkOut,
+    guests: String(request.guests),
+  })
+  return unwrap<AvailabilityResult>(
+    await fetch(`${AVAILABILITY_ENDPOINT}?${params.toString()}`)
+  )
+}
+
+export async function fetchBlockedDates(query: BlockedDatesQuery): Promise<string[]> {
+  const params = new URLSearchParams({
+    propertyId: query.propertyId,
+    from: query.from,
+    to: query.to,
+  })
+  const data = await unwrap<BlockedDatesResponse>(
+    await fetch(`${AVAILABILITY_ENDPOINT}/blocked?${params.toString()}`)
+  )
+  return data.blockedDates
 }

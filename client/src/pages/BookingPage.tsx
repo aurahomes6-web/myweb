@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -18,7 +18,7 @@ import NotFoundContent from '@/components/ui/NotFoundContent'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { cn } from '@/lib/cn'
 import { formatShortDate, isValidRange, nightsBetween, today } from '@/lib/date'
-import type { PropertySlug } from '@/types'
+import type { BookingResponse, PropertySlug } from '@/types'
 
 function PropertyPicker() {
   const reduced = useReducedMotion()
@@ -95,6 +95,7 @@ function PropertyPicker() {
 
 export default function BookingPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const reduced = useReducedMotion()
 
   const propertySlug = searchParams.get('property') as PropertySlug | null
@@ -157,7 +158,15 @@ export default function BookingPage() {
           )}
 
           {rangeValid && (
-            <GuestDetailsForm />
+            <GuestDetailsForm
+              property={property}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              guestCount={guests}
+              onSuccess={(booking: BookingResponse) => {
+                navigate('/confirmation', { state: { booking, autoWhatsApp: true } })
+              }}
+            />
           )}
         </div>
 
@@ -227,18 +236,14 @@ export default function BookingPage() {
             )}
 
             <div className="mt-7 border-t border-surface-300/30 pt-6">
-              <button
-                type="button"
-                disabled
-                className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full border border-surface-300/50 bg-surface-100/40 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-text-muted/50"
-              >
-                <Lock size={14} />
-                Reserve — Phase 4
-              </button>
-              <p className="mt-4 text-center text-xs leading-relaxed text-text-muted">
-                Guest registration, identity verification, payment and your official
-                booking ticket arrive in the next phase.
-              </p>
+              <div className="flex items-start gap-3 rounded-2xl border border-surface-300/40 bg-surface-100/40 p-4 text-sm text-text-muted">
+                <Lock size={15} className="mt-0.5 shrink-0 text-text-muted" />
+                <p>
+                  Guest identity details are collected securely in the form and
+                  sent only when you confirm. Payment and your digital ticket
+                  arrive in the next phase.
+                </p>
+              </div>
             </div>
           </div>
         </aside>

@@ -166,6 +166,34 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-purple) 20%, transparent);
   }
 
+  /* Native select used for the gender field: dark popup, light text, and the
+     same purple focus as the rest of the forms. color-scheme: dark makes the
+     browser draw the dropdown with dark chrome on Windows Chrome/Edge. */
+  .select-glass {
+    color-scheme: dark;
+    cursor: pointer;
+  }
+
+  .select-glass option {
+    background: var(--color-surface-200);
+    color: var(--color-text-primary);
+    font-weight: 500;
+  }
+
+  .select-glass option:checked {
+    background: linear-gradient(100deg, var(--color-purple), var(--color-cyan));
+    color: #fff;
+  }
+
+  .select-glass option:disabled {
+    color: var(--color-text-muted);
+  }
+
+  .select-glass:focus-visible {
+    border-color: color-mix(in srgb, var(--color-purple) 60%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-purple) 20%, transparent);
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

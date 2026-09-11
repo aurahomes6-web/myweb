@@ -1,0 +1,97 @@
+// AURA HOMES — Prisma schema (Supabase-hosted PostgreSQL)
+//
+// Connection strategy:
+//   DATABASE_URL = Supabase transaction-mode pooler (used by the Prisma Client)
+//   DIRECT_URL    = Supabase session-mode pooler  (used by Prisma Migrate)
+//
+// Both values live in server/.env and are never committed.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum GuestGender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+model Property {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  name             String
+  shortLabel       String
+  description      String
+  shortDescription String
+  capacity         Int
+  bedrooms         Int
+  bathrooms        Int
+  sqft             Int
+  amenities        String[]
+  accent           String
+  visual           String
+  location         String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  bookings         Booking[]
+  blockedDates     BlockedDate[]
+
+  @@index([slug])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  propertyId  String
+  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  checkIn     DateTime      @db.Date
+  checkOut    DateTime      @db.Date
+  guestCount  Int
+  primaryPhone String
+  notes       String?
+  status      BookingStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  guestRecords Guest[]
+
+  @@index([propertyId, checkIn, checkOut])
+  @@index([status])
+}
+
+model Guest {
+  id            String      @id @default(cuid())
+  bookingId     String
+  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fullName      String
+  aadhaarNumber String
+  gender        GuestGender
+  age           Int
+  phone         String?
+  isPrimary     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  @@index([bookingId])
+}
+
+model BlockedDate {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  reason     String?
+
+  @@unique([propertyId, date])
+  @@index([propertyId, date])
+}

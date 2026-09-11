@@ -7,17 +7,30 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json --noEmit",
+    "test": "tsx --test tests/bookingCode.test.ts tests/dateRange.test.ts tests/bookingValidation.test.ts tests/notificationService.test.ts",
+    "test:live": "tsx scripts/smoke-booking.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:pull": "prisma db pull"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.2",
+    "@types/pg": "^8.23.1",
+    "prisma": "^7.10.0",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
