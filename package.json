@@ -1,0 +1,12 @@
+{
+  "name": "aura-homes",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build --prefix client && npm run build --prefix server",
+    "typecheck": "npm run typecheck --prefix client && npm run typecheck --prefix server"
+  }
+}
