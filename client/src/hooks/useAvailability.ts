@@ -12,7 +12,7 @@ import { isValidRange } from '@/lib/date'
 /**
  * Read-only access to the shared booking URL params
  * (?property=&checkIn=&checkOut=&guests=). The writes go through the specific
- * components' own `useSearchParams` so updates stay local to the flow.
+ * components' own `useSearchParams` so updates stay local to the flow. OK.
  */
 export function useReservationQuery() {
   const [searchParams] = useSearchParams()
