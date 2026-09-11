@@ -318,7 +318,7 @@ export default function AirbnbBookingPage() {
             </div>
             <div>
               <h2 className="font-display text-lg font-semibold text-text-primary">
-                Airbnb reservation
+                Airbnb reservation details
               </h2>
               <p className="mt-1 text-sm leading-relaxed text-text-muted">
                 Use the details from your Airbnb confirmation.

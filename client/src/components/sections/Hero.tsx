@@ -114,10 +114,9 @@ export default function Hero() {
                 className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-cyan/40 px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-bright transition-all duration-300 hover:bg-cyan/10 hover:shadow-glow-cyan"
               >
                 Via Airbnb
-                <ArrowRight
-                  size={14}
-                  className="transition-transform duration-300 group-hover:translate-x-1"
-                />
+                <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
               </Link>
             </motion.div>
 
