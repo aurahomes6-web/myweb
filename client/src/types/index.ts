@@ -28,6 +28,8 @@ export interface Property {
   visual: VisualKind
   capacity: number
   bedrooms: number
+  /** Physical bed count; only populated when the API provides it. */
+  beds?: number
   bathrooms: number
   sqft: number
   amenities: string[]

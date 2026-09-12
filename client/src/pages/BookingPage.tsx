@@ -9,8 +9,9 @@ import {
   BedDouble,
   Bath,
   Lock,
+  Loader2,
 } from 'lucide-react'
-import { properties, getPropertyBySlug } from '@/data/properties'
+import { useProperties, usePropertyBySlug } from '@/services/properties'
 import { accentPalettes } from '@/config/accents'
 import PropertyVisual from '@/components/visuals/PropertyVisual'
 import GuestDetailsForm from '@/components/booking/GuestDetailsForm'
@@ -22,6 +23,7 @@ import type { BookingResponse, PropertySlug } from '@/types'
 
 function PropertyPicker() {
   const reduced = useReducedMotion()
+  const { items } = useProperties()
 
   return (
     <div className="mx-auto max-w-3xl px-5 pb-28 pt-32 sm:px-8 lg:pt-36">
@@ -50,7 +52,7 @@ function PropertyPicker() {
         </p>
 
         <div className="mt-12 flex flex-col gap-5">
-          {properties.map((property) => {
+          {items.map((property) => {
             const palette = accentPalettes[property.accent]
             return (
               <Link
@@ -103,13 +105,21 @@ export default function BookingPage() {
   const checkOut = searchParams.get('checkOut') ?? ''
   const guestsParam = searchParams.get('guests')
 
-  const property = propertySlug ? getPropertyBySlug(propertySlug) : undefined
+  const { property, isMissing, status } = usePropertyBySlug(propertySlug ?? undefined)
 
   if (!propertySlug) {
     return <PropertyPicker />
   }
 
-  if (!property) {
+  if (status === 'loading' && !property) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-text-muted" />
+      </div>
+    )
+  }
+
+  if (isMissing || !property) {
     return <NotFoundContent />
   }
 

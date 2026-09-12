@@ -1,0 +1,49 @@
+import { Router } from 'express'
+import { adminConfig, requireConfiguredAdmin, requireCsrfHeader } from '../lib/adminAuth.js'
+import {
+  cancelAirbnbHandler,
+  cancelBookingHandler,
+  createAirbnbHandler,
+  deleteAirbnbHandler,
+  deletePropertyHandler,
+  getAirbnbHandler,
+  getBookingHandler,
+  listAirbnbHandler,
+  listBookingsHandler,
+  listPropertiesHandler,
+  login,
+  logout,
+  me,
+  updateAirbnbHandler,
+  updateBookingHandler,
+  updatePropertyHandler,
+} from '../controllers/adminController.js'
+
+const config = adminConfig(process.env)
+const auth = requireConfiguredAdmin(config)
+const router = Router()
+
+// Public entry point: exchange admin credentials for a session cookie.
+router.post('/login', requireCsrfHeader, login(config))
+
+// Everything below requires a valid admin session.
+router.post('/logout', requireCsrfHeader, auth, logout(config))
+router.get('/me', auth, me)
+
+router.get('/bookings', auth, listBookingsHandler)
+router.get('/bookings/:id', auth, getBookingHandler)
+router.patch('/bookings/:id', requireCsrfHeader, auth, updateBookingHandler)
+router.post('/bookings/:id/cancel', requireCsrfHeader, auth, cancelBookingHandler)
+
+router.get('/airbnb', auth, listAirbnbHandler)
+router.get('/airbnb/:id', auth, getAirbnbHandler)
+router.post('/airbnb', requireCsrfHeader, auth, createAirbnbHandler)
+router.patch('/airbnb/:id', requireCsrfHeader, auth, updateAirbnbHandler)
+router.post('/airbnb/:id/cancel', requireCsrfHeader, auth, cancelAirbnbHandler)
+router.delete('/airbnb/:id', requireCsrfHeader, auth, deleteAirbnbHandler)
+
+router.get('/properties', auth, listPropertiesHandler)
+router.patch('/properties/:id', requireCsrfHeader, auth, updatePropertyHandler)
+router.delete('/properties/:id', requireCsrfHeader, auth, deletePropertyHandler)
+
+export default router

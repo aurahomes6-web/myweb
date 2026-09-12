@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Users, BedDouble, Bath, Maximize, MapPin, Sparkles } from 'lucide-react'
-import { getPropertyBySlug } from '@/data/properties'
+import { ArrowLeft, Users, BedDouble, Bath, Maximize, MapPin, Sparkles, Loader2 } from 'lucide-react'
+import { usePropertyBySlug } from '@/services/properties'
 import { accentPalettes } from '@/config/accents'
 import ImageGallery from '@/components/gallery/ImageGallery'
 import AvailabilityCard from '@/components/booking/AvailabilityCard'
@@ -8,10 +8,18 @@ import NotFoundContent from '@/components/ui/NotFoundContent'
 
 export default function PropertyDetailPage() {
   const { slug } = useParams<{ slug: string }>()
-  const property = slug ? getPropertyBySlug(slug) : undefined
+  const { property, isMissing } = usePropertyBySlug(slug)
+
+  if (isMissing) {
+    return <NotFoundContent />
+  }
 
   if (!property) {
-    return <NotFoundContent />
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-text-muted" />
+      </div>
+    )
   }
 
   const accent = accentPalettes[property.accent]

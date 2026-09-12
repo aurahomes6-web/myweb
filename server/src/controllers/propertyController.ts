@@ -12,6 +12,7 @@ function serializeProperty(property: Property) {
     shortDescription: property.shortDescription,
     capacity: property.capacity,
     bedrooms: property.bedrooms,
+    beds: property.beds,
     bathrooms: property.bathrooms,
     sqft: property.sqft,
     amenities: property.amenities,

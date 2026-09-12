@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
-import { properties } from '@/data/properties'
+import { useProperties } from '@/services/properties'
 import PropertyGrid from '@/components/property/PropertyGrid'
 import SectionHeading from '@/components/ui/SectionHeading'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 export default function PropertiesPage() {
   const reduced = useReducedMotion()
+  const { items } = useProperties()
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-28 pt-32 sm:px-8 lg:pt-36">
@@ -36,7 +37,7 @@ export default function PropertiesPage() {
           className="mb-14"
         />
 
-        <PropertyGrid items={properties} />
+        <PropertyGrid items={items} />
       </motion.div>
     </div>
   )

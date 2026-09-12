@@ -1,8 +1,10 @@
-import { properties } from '@/data/properties'
+import { useProperties } from '@/services/properties'
 import PropertyGrid from '@/components/property/PropertyGrid'
 import SectionHeading from '@/components/ui/SectionHeading'
 
 export default function PropertiesSection() {
+  const { items } = useProperties()
+
   return (
     <section id="properties" className="relative py-24 lg:py-32">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-purple/40 to-transparent" />
@@ -18,7 +20,7 @@ export default function PropertiesSection() {
           description="Three spaces. One AURA."
         />
 
-        <PropertyGrid items={properties} />
+        <PropertyGrid items={items} />
       </div>
     </section>
   )

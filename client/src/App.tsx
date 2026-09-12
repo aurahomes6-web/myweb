@@ -11,6 +11,7 @@ import BookingPage from '@/pages/BookingPage'
 import ConfirmationPage from '@/pages/ConfirmationPage'
 import AirbnbBookingPage from '@/pages/AirbnbBookingPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import AdminPage from '@/pages/AdminPage'
 
 function AppShell() {
   const location = useLocation()
@@ -47,7 +48,10 @@ export default function App() {
     <BrowserRouter>
       <ScrollManager />
       <div className="min-h-screen bg-surface">
-        <AppShell />
+        <Routes>
+          <Route path="/admin/*" element={<AdminPage />} />
+          <Route path="/*" element={<AppShell />} />
+        </Routes>
       </div>
     </BrowserRouter>
   )
