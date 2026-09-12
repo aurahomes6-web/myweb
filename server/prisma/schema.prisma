@@ -108,9 +108,9 @@ model BlockedDate {
 
 model AirbnbReservation {
   id                String        @id @default(cuid())
-  propertyId        String
-  property          Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  reservationNumber String        @unique
+  propertyId        String?
+  property          Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  reservationNumber String
   guestName         String
   primaryPhone      String
   checkIn           DateTime      @db.Date

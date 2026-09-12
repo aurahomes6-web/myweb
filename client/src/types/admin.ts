@@ -46,8 +46,9 @@ export interface AdminBooking {
 
 export interface AdminAirbnb {
   id: string
-  propertyId: string
-  property: AdminPropertyRef
+  /** Null when the reservation came from the public flow and has no home assigned yet. */
+  propertyId: string | null
+  property: AdminPropertyRef | null
   reservationNumber: string
   guestName: string
   primaryPhone: string
@@ -117,4 +118,13 @@ export interface AdminApiErrorShape {
   error: string
   message: string
   details?: Array<{ field: string; message: string }>
+}
+
+/** Result of a Database Cleanup action (counters of removed rows). */
+export interface AdminCleanupResult {
+  deletedBookings: number
+  deletedGuests: number
+  deletedReservations: number
+  deletedAirbnbGuests: number
+  deletedBlockedDates: number
 }

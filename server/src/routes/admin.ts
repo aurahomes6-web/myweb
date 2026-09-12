@@ -3,6 +3,10 @@ import { adminConfig, requireConfiguredAdmin, requireCsrfHeader } from '../lib/a
 import {
   cancelAirbnbHandler,
   cancelBookingHandler,
+  clearAirbnbBlockedDatesHandler,
+  clearAirbnbHandler,
+  clearAllBookingDataHandler,
+  clearBookingsHandler,
   createAirbnbHandler,
   deleteAirbnbHandler,
   deletePropertyHandler,
@@ -45,5 +49,12 @@ router.delete('/airbnb/:id', requireCsrfHeader, auth, deleteAirbnbHandler)
 router.get('/properties', auth, listPropertiesHandler)
 router.patch('/properties/:id', requireCsrfHeader, auth, updatePropertyHandler)
 router.delete('/properties/:id', requireCsrfHeader, auth, deletePropertyHandler)
+
+// Destructive maintenance. Auth + CSRF + an explicit confirmation phrase are
+// all required before any data is removed. Properties are always preserved.
+router.post('/cleanup/bookings', requireCsrfHeader, auth, clearBookingsHandler)
+router.post('/cleanup/airbnb', requireCsrfHeader, auth, clearAirbnbHandler)
+router.post('/cleanup/blocked-dates', requireCsrfHeader, auth, clearAirbnbBlockedDatesHandler)
+router.post('/cleanup/all', requireCsrfHeader, auth, clearAllBookingDataHandler)
 
 export default router

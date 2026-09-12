@@ -4,6 +4,7 @@ import type {
   AdminAirbnbPayload,
   AdminApiErrorShape,
   AdminBooking,
+  AdminCleanupResult,
   AdminProperty,
   AdminPropertyPayload,
   BookingUpdatePayload,
@@ -88,18 +89,21 @@ export async function fetchAdminBookings(): Promise<AdminBooking[]> {
 }
 
 export async function fetchAdminBooking(id: string): Promise<AdminBooking> {
-  return request<AdminBooking>(`/bookings/${encodeURIComponent(id)}`)
+  const body = await request<{ booking: AdminBooking }>(`/bookings/${encodeURIComponent(id)}`)
+  return body.booking
 }
 
 export async function updateAdminBooking(id: string, payload: BookingUpdatePayload): Promise<AdminBooking> {
-  return request<AdminBooking>(`/bookings/${encodeURIComponent(id)}`, {
+  const body = await request<{ booking: AdminBooking }>(`/bookings/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
+  return body.booking
 }
 
 export async function cancelAdminBooking(id: string): Promise<AdminBooking> {
-  return request<AdminBooking>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+  const body = await request<{ booking: AdminBooking }>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+  return body.booking
 }
 
 export async function fetchAdminAirbnb(): Promise<AdminAirbnb[]> {
@@ -108,22 +112,31 @@ export async function fetchAdminAirbnb(): Promise<AdminAirbnb[]> {
 }
 
 export async function fetchAdminAirbnbItem(id: string): Promise<AdminAirbnb> {
-  return request<AdminAirbnb>(`/airbnb/${encodeURIComponent(id)}`)
+  const body = await request<{ reservation: AdminAirbnb }>(`/airbnb/${encodeURIComponent(id)}`)
+  return body.reservation
 }
 
 export async function createAdminAirbnb(payload: AdminAirbnbPayload): Promise<AdminAirbnb> {
-  return request<AdminAirbnb>('/airbnb', { method: 'POST', body: JSON.stringify(payload) })
+  const body = await request<{ reservation: AdminAirbnb }>('/airbnb', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return body.reservation
 }
 
 export async function updateAdminAirbnb(id: string, payload: AdminAirbnbPayload): Promise<AdminAirbnb> {
-  return request<AdminAirbnb>(`/airbnb/${encodeURIComponent(id)}`, {
+  const body = await request<{ reservation: AdminAirbnb }>(`/airbnb/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
+  return body.reservation
 }
 
 export async function cancelAdminAirbnb(id: string): Promise<AdminAirbnb> {
-  return request<AdminAirbnb>(`/airbnb/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+  const body = await request<{ reservation: AdminAirbnb }>(`/airbnb/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+  })
+  return body.reservation
 }
 
 export async function deleteAdminAirbnb(id: string): Promise<{ ok: true }> {
@@ -136,12 +149,42 @@ export async function fetchAdminProperties(): Promise<AdminProperty[]> {
 }
 
 export async function updateAdminProperty(id: string, payload: AdminPropertyPayload): Promise<AdminProperty> {
-  return request<AdminProperty>(`/properties/${encodeURIComponent(id)}`, {
+  const body = await request<{ property: AdminProperty }>(`/properties/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
+  return body.property
 }
 
 export async function deleteAdminProperty(id: string): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/properties/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+// ── database cleanup ────────────────────────────────────────────────────────
+//
+// Destructive maintenance. The server requires the exact confirmation phrase
+// plus the CSRF header (sent automatically above) and a valid admin session.
+
+async function runCleanup(path: string, confirm: string): Promise<AdminCleanupResult> {
+  const body = await request<{ ok: true; result: AdminCleanupResult }>(path, {
+    method: 'POST',
+    body: JSON.stringify({ confirm }),
+  })
+  return body.result
+}
+
+export function cleanupAdminBookings(): Promise<AdminCleanupResult> {
+  return runCleanup('/cleanup/bookings', 'DELETE')
+}
+
+export function cleanupAdminAirbnb(): Promise<AdminCleanupResult> {
+  return runCleanup('/cleanup/airbnb', 'DELETE')
+}
+
+export function cleanupAdminBlockedDates(): Promise<AdminCleanupResult> {
+  return runCleanup('/cleanup/blocked-dates', 'DELETE')
+}
+
+export function cleanupAdminAllData(): Promise<AdminCleanupResult> {
+  return runCleanup('/cleanup/all', 'DELETE ALL')
 }

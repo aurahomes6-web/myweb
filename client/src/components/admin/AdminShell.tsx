@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button'
 import { BookingsTab } from '@/components/admin/BookingsTab'
 import { AirbnbTab } from '@/components/admin/AirbnbTab'
 import { PropertiesTab } from '@/components/admin/PropertiesTab'
+import { CleanupTab } from '@/components/admin/CleanupTab'
 import { adminLogout } from '@/services/admin'
 import { cn } from '@/lib/cn'
 
@@ -11,6 +12,7 @@ const tabs = [
   { to: '/admin', label: 'Bookings', end: true },
   { to: '/admin/airbnb', label: 'Airbnb', end: false },
   { to: '/admin/properties', label: 'Properties', end: false },
+  { to: '/admin/cleanup', label: 'Cleanup', end: false },
 ]
 
 interface AdminShellProps {
@@ -73,6 +75,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
           <Route path="bookings" element={<BookingsTab />} />
           <Route path="airbnb" element={<AirbnbTab />} />
           <Route path="properties" element={<PropertiesTab />} />
+          <Route path="cleanup" element={<CleanupTab />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </main>

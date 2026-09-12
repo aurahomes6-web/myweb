@@ -8,6 +8,10 @@ import {
   NotFoundError,
   cancelAirbnb,
   cancelBooking,
+  clearAirbnb,
+  clearAirbnbBlockedDates,
+  clearAllBookingData,
+  clearBookings,
   createAirbnb,
   deleteAirbnb,
   deleteProperty,
@@ -39,7 +43,7 @@ function matches(where: Record<string, any> | undefined, row: Record<string, any
       const op = cond as Record<string, any>
       if ('not' in op) {
         if (op.not === null) {
-          if (value !== null && value !== undefined) return false
+          if (value === null || value === undefined) return false
         } else if (value === op.not) return false
       }
       if ('lt' in op && !(value < op.lt)) return false
@@ -220,12 +224,30 @@ class FakeDb {
       return include && include.guestRecords ? this.attachBooking({ ...row }) : { ...row }
     },
     count: async ({ where }: any = {}) => this.bookings.filter((r) => matches(where, r)).length,
+    deleteMany: async ({ where }: any = {}) => {
+      const doomed = this.bookings.filter((r) => matches(where, r))
+      this.bookings = this.bookings.filter((r) => !matches(where, r))
+      const ids = new Set(doomed.map((r) => r.id as string))
+      this.bookingGuests = this.bookingGuests.filter((g) => !ids.has(g.bookingId as string))
+      return { count: doomed.length }
+    },
   }
 
   // ── booking guests ──
   guest: any = {
     deleteMany: async ({ where }: any = {}) => {
+      const before = this.bookingGuests.length
       this.bookingGuests = this.bookingGuests.filter((g) => !matches(where, g as Record<string, unknown>))
+      return { count: before - this.bookingGuests.length }
+    },
+  }
+
+  // ── airbnb guests ──
+  airbnbGuest: any = {
+    deleteMany: async ({ where }: any = {}) => {
+      const before = this.airbnbGuests.length
+      this.airbnbGuests = this.airbnbGuests.filter((g) => !matches(where, g as Record<string, unknown>))
+      return { count: before - this.airbnbGuests.length }
     },
   }
 
@@ -297,6 +319,14 @@ class FakeDb {
       // cascade: reservation's blocked rows disappear
       this.blockedDates = this.blockedDates.filter((b) => b.airbnbReservationId !== row.id)
     },
+    deleteMany: async ({ where }: any = {}) => {
+      const doomed = this.airbnbs.filter((r) => matches(where, r))
+      this.airbnbs = this.airbnbs.filter((r) => !matches(where, r))
+      const ids = new Set(doomed.map((r) => r.id as string))
+      this.airbnbGuests = this.airbnbGuests.filter((g) => !ids.has(g.reservationId as string))
+      this.blockedDates = this.blockedDates.filter((b) => !ids.has(b.airbnbReservationId as string))
+      return { count: doomed.length }
+    },
     count: async ({ where }: any = {}) => this.airbnbs.filter((r) => matches(where, r)).length,
   }
 
@@ -312,7 +342,9 @@ class FakeDb {
       }
     },
     deleteMany: async ({ where }: any = {}) => {
+      const before = this.blockedDates.length
       this.blockedDates = this.blockedDates.filter((r) => !matches(where, r))
+      return { count: before - this.blockedDates.length }
     },
     count: async ({ where }: any = {}) => this.blockedDates.filter((r) => matches(where, r)).length,
   }
@@ -392,7 +424,7 @@ function seedBooking(fake: FakeDb, overrides: BookingSeedOverrides = {}) {
 }
 
 interface AirbnbBodyOverrides {
-  propertyId?: string
+  propertyId?: string | null
   reservationNumber?: string
   guestName?: string
   primaryPhone?: string
@@ -405,7 +437,7 @@ interface AirbnbBodyOverrides {
 
 function airbnbBody(overrides: AirbnbBodyOverrides = {}) {
   return {
-    propertyId: overrides.propertyId ?? 'prop-1',
+    propertyId: overrides.propertyId !== undefined ? overrides.propertyId : 'prop-1',
     reservationNumber: overrides.reservationNumber ?? 'HMB1234',
     guestName: overrides.guestName ?? 'Jordan Lee',
     primaryPhone: overrides.primaryPhone ?? '9812345678',
@@ -428,7 +460,7 @@ test('createAirbnb blocks availability by materialising blocked dates', async ()
   const created = await createAirbnb(asClient(fake), airbnbBody())
 
   assert.equal(created.status, 'ACTIVE')
-  assert.equal(created.property.slug, 'aura-cozy-penthouse-1')
+  assert.equal(created.property?.slug, 'aura-cozy-penthouse-1')
   assert.deepStrictEqual(created.guests.map((g) => g.fullName).sort(), ['Jordan Lee', 'Maya Lee'])
 
   const keys = fake.blockedDates.map((b) => (b.date as Date).toISOString().slice(0, 10)).sort()
@@ -479,14 +511,19 @@ test('createAirbnb accepts a non-overlapping window', async () => {
   assert.equal(second.reservationNumber, 'XYZ9999')
 })
 
-test('createAirbnb rejects duplicate confirmation numbers', async () => {
+test('createAirbnb accepts duplicate or empty confirmation numbers', async () => {
   const fake = makeDb()
   seedProperty(fake)
-  await createAirbnb(asClient(fake), airbnbBody())
-  await assert.rejects(
-    () => createAirbnb(asClient(fake), airbnbBody({ checkIn: '2026-11-01', checkOut: '2026-11-03' })),
-    (err: unknown) => err instanceof ConflictError
-  )
+  // The reservation number is optional: two reservations may share an empty
+  // number...
+  await createAirbnb(asClient(fake), airbnbBody({ reservationNumber: '', checkIn: '2026-10-01', checkOut: '2026-10-03' }))
+  const second = await createAirbnb(asClient(fake), airbnbBody({ reservationNumber: '', checkIn: '2026-10-05', checkOut: '2026-10-07' }))
+  assert.equal(second.reservationNumber, '')
+  // ...and non-empty numbers no longer have to be unique either.
+  await createAirbnb(asClient(fake), airbnbBody({ reservationNumber: 'HMB9999', checkIn: '2026-10-09', checkOut: '2026-10-11' }))
+  const dup = await createAirbnb(asClient(fake), airbnbBody({ reservationNumber: 'HMB9999', checkIn: '2026-10-13', checkOut: '2026-10-15' }))
+  assert.equal(dup.reservationNumber, 'HMB9999')
+  assert.equal((await listAirbnb(asClient(fake))).length, 4)
 })
 
 test('createAirbnb rejects more guests than capacity', async () => {
@@ -601,6 +638,136 @@ test('cancelled reservations no longer block availability for direct bookings', 
     checkOut: '2026-10-03',
   })
   assert.deepStrictEqual(conflict, { booking: false, airbnb: false, manual: false })
+})
+
+test('a public submission persists as unassigned and blocks no nights', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  seedProperty(fake, { id: 'prop-2', slug: 'aura-lakehouse-2', name: 'Aura Lakehouse 2' })
+
+  const created = await createAirbnb(asClient(fake), airbnbBody({ propertyId: null, reservationNumber: '' }))
+
+  assert.equal(created.propertyId, null)
+  assert.equal(created.property, null)
+  assert.equal(created.status, 'ACTIVE')
+
+  // No blocked nights are materialised for an unassigned submission.
+  assert.equal(fake.blockedDates.length, 0)
+
+  // It surfaces in the admin list and can be read back in full.
+  const listed = await listAirbnb(asClient(fake))
+  assert.equal(listed.length, 1)
+  assert.equal(listed[0].id, created.id)
+  const detail = await getAirbnb(asClient(fake), created.id)
+  assert.equal(detail.id, created.id)
+  assert.equal(detail.guests[0].fullName, 'Jordan Lee')
+
+  // Unassigned reservations never block availability for any property.
+  for (const propertyId of ['prop-1', 'prop-2']) {
+    const conflict = await collectConflicts(asClient(fake), {
+      propertyId,
+      checkIn: '2026-10-01',
+      checkOut: '2026-10-03',
+    })
+    assert.deepStrictEqual(conflict, { booking: false, airbnb: false, manual: false })
+  }
+})
+
+test('multiple unassigned submissions each appear separately in the list', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  const first = await createAirbnb(asClient(fake), airbnbBody({ propertyId: null, reservationNumber: '' }))
+  const second = await createAirbnb(asClient(fake), airbnbBody({ propertyId: null, reservationNumber: '', checkIn: '2026-10-05', checkOut: '2026-10-07' }))
+
+  const listed = await listAirbnb(asClient(fake))
+  assert.equal(listed.length, 2)
+  assert.ok(listed.some((r) => r.id === first.id))
+  assert.ok(listed.some((r) => r.id === second.id))
+  assert.ok(listed.every((r) => r.propertyId === null && r.property === null))
+})
+
+test('updateAirbnb assigns a property and materialises blocked nights for an unassigned submission', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  const created = await createAirbnb(asClient(fake), airbnbBody({ propertyId: null }))
+
+  const updated = await updateAirbnb(asClient(fake), created.id, airbnbBody({ propertyId: 'prop-1' }))
+
+  assert.equal(updated.propertyId, 'prop-1')
+  assert.equal(updated.property?.slug, 'aura-cozy-penthouse-1')
+  const keys = fake.blockedDates.map((b) => (b.date as Date).toISOString().slice(0, 10)).sort()
+  assert.deepStrictEqual(keys, ['2026-10-01', '2026-10-02'])
+  assert.ok(fake.blockedDates.every((b) => b.airbnbReservationId === created.id))
+
+  const conflict = await collectConflicts(asClient(fake), {
+    propertyId: 'prop-1',
+    checkIn: '2026-10-01',
+    checkOut: '2026-10-03',
+  })
+  assert.deepStrictEqual(conflict, { booking: false, airbnb: true, manual: false })
+})
+
+test('updateAirbnb rejects assigning a property whose window clashes with a booking', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  const created = await createAirbnb(asClient(fake), airbnbBody({ propertyId: null }))
+  seedBooking(fake, { checkIn: toUtcDate('2026-10-01'), checkOut: toUtcDate('2026-10-03') })
+
+  await assert.rejects(
+    () => updateAirbnb(asClient(fake), created.id, airbnbBody({ propertyId: 'prop-1' })),
+    (err: unknown) => err instanceof ConflictError
+  )
+})
+
+test('updateAirbnb reassigning another property moves its blocked nights', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  seedProperty(fake, { id: 'prop-2', slug: 'aura-lakehouse-2', name: 'Aura Lakehouse 2', capacity: 4 })
+  const created = await createAirbnb(asClient(fake), airbnbBody()) // prop-1 by default
+  assert.equal(fake.blockedDates.length, 2)
+
+  const updated = await updateAirbnb(asClient(fake), created.id, airbnbBody({ propertyId: 'prop-2' }))
+
+  assert.equal(updated.propertyId, 'prop-2')
+  assert.equal(fake.blockedDates.length, 2)
+  assert.ok(fake.blockedDates.every((b) => b.propertyId === 'prop-2'))
+  assert.ok(fake.blockedDates.every((b) => b.airbnbReservationId === created.id))
+
+  const old = await collectConflicts(asClient(fake), {
+    propertyId: 'prop-1',
+    checkIn: '2026-10-01',
+    checkOut: '2026-10-03',
+  })
+  assert.deepStrictEqual(old, { booking: false, airbnb: false, manual: false })
+})
+
+test('updateAirbnb unassigning a reservation releases its blocked nights', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  const created = await createAirbnb(asClient(fake), airbnbBody())
+  assert.equal(fake.blockedDates.length, 2)
+
+  const updated = await updateAirbnb(asClient(fake), created.id, airbnbBody({ propertyId: null }))
+
+  assert.equal(updated.propertyId, null)
+  assert.equal(updated.property, null)
+  assert.equal(fake.blockedDates.length, 0)
+
+  const conflict = await collectConflicts(asClient(fake), {
+    propertyId: 'prop-1',
+    checkIn: '2026-10-01',
+    checkOut: '2026-10-03',
+  })
+  assert.deepStrictEqual(conflict, { booking: false, airbnb: false, manual: false })
+})
+
+test('updateAirbnb lets the reservation number be cleared on an assigned record', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  const created = await createAirbnb(asClient(fake), airbnbBody())
+  const updated = await updateAirbnb(asClient(fake), created.id, airbnbBody({ propertyId: 'prop-1', reservationNumber: '' }))
+  assert.equal(updated.reservationNumber, '')
+  assert.equal(fake.blockedDates.length, 2)
 })
 
 test('updateBooking replaces guest records and keeps cancelled status intact', async () => {
@@ -740,4 +907,93 @@ test('deleteProperty rejects unknown id', async () => {
     () => deleteProperty(asClient(fake), 'missing'),
     (err: unknown) => err instanceof NotFoundError
   )
+})
+
+// ── database cleanup ────────────────────────────────────────────────────────
+
+test('clearBookings deletes bookings and guests but preserves properties', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  seedBooking(fake)
+  seedBooking(fake, { checkIn: toUtcDate('2026-11-01'), checkOut: toUtcDate('2026-11-03') })
+
+  const result = await clearBookings(asClient(fake))
+
+  assert.equal(result.deletedBookings, 2)
+  assert.equal(result.deletedGuests, 4)
+  assert.equal(fake.bookings.length, 0)
+  assert.equal(fake.bookingGuests.length, 0)
+  assert.equal(fake.properties.length, 1)
+})
+
+test('clearAirbnb deletes reservations and their blocked nights but keeps manual blocked dates', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  await createAirbnb(asClient(fake), airbnbBody())
+  await createAirbnb(asClient(fake), airbnbBody({ propertyId: null, reservationNumber: '' }))
+  fake.blockedDates.push({
+    id: 'manual-1',
+    propertyId: 'prop-1',
+    date: toUtcDate('2026-12-01'),
+    reason: 'Owner blocked',
+    airbnbReservationId: null,
+  })
+
+  const result = await clearAirbnb(asClient(fake))
+
+  assert.equal(result.deletedReservations, 2)
+  assert.equal(result.deletedAirbnbGuests, 4)
+  assert.equal(result.deletedBlockedDates, 2)
+  assert.equal(fake.airbnbs.length, 0)
+  assert.equal(fake.airbnbGuests.length, 0)
+  assert.equal(fake.blockedDates.length, 1) // manual night survives
+  assert.equal(fake.properties.length, 1)
+})
+
+test('clearAirbnbBlockedDates removes only Airbnb-generated nights', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  await createAirbnb(asClient(fake), airbnbBody())
+  fake.blockedDates.push({
+    id: 'manual-1',
+    propertyId: 'prop-1',
+    date: toUtcDate('2026-12-01'),
+    reason: 'Owner blocked',
+    airbnbReservationId: null,
+  })
+
+  const result = await clearAirbnbBlockedDates(asClient(fake))
+
+  assert.equal(result.deletedBlockedDates, 2)
+  assert.equal(fake.blockedDates.length, 1)
+  assert.equal(fake.airbnbs.length, 1) // reservations themselves survive
+})
+
+test('clearAllBookingData deletes everything booking-related while preserving property configuration', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  seedBooking(fake)
+  await createAirbnb(asClient(fake), airbnbBody())
+  fake.blockedDates.push({
+    id: 'manual-1',
+    propertyId: 'prop-1',
+    date: toUtcDate('2026-12-01'),
+    reason: 'Owner blocked',
+    airbnbReservationId: null,
+  })
+
+  const result = await clearAllBookingData(asClient(fake))
+
+  assert.equal(result.deletedBookings, 1)
+  assert.equal(result.deletedGuests, 2)
+  assert.equal(result.deletedReservations, 1)
+  assert.equal(result.deletedAirbnbGuests, 2)
+  assert.equal(result.deletedBlockedDates, 3) // airbnb nights + manual night
+  assert.equal(fake.bookings.length, 0)
+  assert.equal(fake.bookingGuests.length, 0)
+  assert.equal(fake.airbnbs.length, 0)
+  assert.equal(fake.airbnbGuests.length, 0)
+  assert.equal(fake.blockedDates.length, 0)
+  assert.equal(fake.properties.length, 1)
+  assert.equal(fake.properties[0].name, 'Aura Cozy Penthouse 1')
 })

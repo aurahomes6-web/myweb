@@ -1,18 +1,21 @@
 import { Request, Response } from 'express'
 import { validateAirbnbDetails } from '../lib/airbnbValidation.js'
 import { buildAirbnbWhatsAppMessage, getWhatsAppStatus } from '../services/notificationService.js'
+import { createAirbnb } from '../services/adminService.js'
+import { prisma } from '../lib/db.js'
 
 /**
  * Airbnb reservation details → WhatsApp (Phase 7).
  *
- * Stateless: validates the customer's Airbnb reservation information and
- * returns the WhatsApp message for the click-to-chat flow. The full Aadhaar is
- * included ONLY inside that message (the customer's own pre-fill) — it is never
- * exposed anywhere else. This NEVER creates a website booking, never generates
- * an AURA booking ID, and never checks availability. The reservation number is
- * optional.
+ * Validates the customer's Airbnb reservation information, records an
+ * UNASSIGNED AirbnbReservation for the admin dashboard (propertyId null — no
+ * nights are blocked until the admin assigns a home), and returns the WhatsApp
+ * message for the click-to-chat flow. The full Aadhaar is included ONLY inside
+ * that message (the customer's own pre-fill) — it is never exposed anywhere
+ * else. This NEVER creates a website booking, never generates an AURA booking
+ * ID, and never checks availability. The reservation number is optional.
  */
-export function submitAirbnbDetailsHandler(req: Request, res: Response): void {
+export async function submitAirbnbDetailsHandler(req: Request, res: Response): Promise<void> {
   const result = validateAirbnbDetails(req.body)
 
   if (!result.ok) {
@@ -23,6 +26,11 @@ export function submitAirbnbDetailsHandler(req: Request, res: Response): void {
     })
     return
   }
+
+  // Record the submission so it shows in Admin → Airbnb. The stored guest
+  // Aadhaar numbers (like booking storage) are private Database-only details;
+  // they only ever surface to the authenticated admin in the detail view.
+  await createAirbnb(prisma, { ...result.value, propertyId: null })
 
   const message = buildAirbnbWhatsAppMessage(result.value, { fullAadhaar: true })
   const notification = getWhatsAppStatus()

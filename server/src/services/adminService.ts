@@ -69,8 +69,8 @@ export interface AdminBookingDto {
 
 export interface AdminAirbnbDto {
   id: string
-  propertyId: string
-  property: AdminPropertyRef
+  propertyId: string | null
+  property: AdminPropertyRef | null
   reservationNumber: string
   guestName: string
   primaryPhone: string
@@ -321,7 +321,7 @@ export async function cancelBooking(client: PrismaClient, id: string): Promise<A
 function serializeAirbnbDto(row: unknown, fullAadhaar: boolean): AdminAirbnbDto {
   const r = row as {
     id: string
-    propertyId: string
+    propertyId: string | null
     reservationNumber: string
     guestName: string
     primaryPhone: string
@@ -337,8 +337,8 @@ function serializeAirbnbDto(row: unknown, fullAadhaar: boolean): AdminAirbnbDto 
   }
   return {
     id: r.id,
-    propertyId: r.propertyId,
-    property: propertyRef(r.property),
+    propertyId: r.propertyId ?? null,
+    property: r.property ? propertyRef(r.property) : null,
     reservationNumber: r.reservationNumber,
     guestName: r.guestName,
     primaryPhone: r.primaryPhone,
@@ -379,36 +379,34 @@ export async function getAirbnb(client: PrismaClient, id: string): Promise<Admin
 
 export async function createAirbnb(
   client: PrismaClient,
-  input: AirbnbDetailsInput & { propertyId: string; notes?: string }
+  input: AirbnbDetailsInput & { propertyId: string | null; notes?: string }
 ): Promise<AdminAirbnbDto> {
-  const property = await client.property.findFirst({
-    where: { OR: [{ id: input.propertyId }, { slug: input.propertyId }] },
-    select: { id: true, capacity: true },
-  })
-  if (!property) throw new NotFoundError('Property not found.')
-  if (input.guestCount > property.capacity) {
+  // Unassigned submissions (propertyId null) come from the public WhatsApp
+  // flow: they are recorded for the admin dashboard but block no nights yet.
+  const property = input.propertyId
+    ? await client.property.findFirst({
+        where: { OR: [{ id: input.propertyId }, { slug: input.propertyId }] },
+        select: { id: true, capacity: true },
+      })
+    : null
+  if (input.propertyId && !property) throw new NotFoundError('Property not found.')
+  if (property && input.guestCount > property.capacity) {
     throw new BadRequestError(`This property sleeps up to ${property.capacity} guests.`)
   }
 
-  const existing = await client.airbnbReservation.findUnique({
-    where: { reservationNumber: input.reservationNumber },
-    select: { id: true },
-  })
-  if (existing) {
-    throw new ConflictError('A reservation with this Airbnb confirmation number already exists.')
+  if (property) {
+    const conflicts = await collectConflicts(client, {
+      propertyId: property.id,
+      checkIn: input.checkIn,
+      checkOut: input.checkOut,
+    })
+    if (anyConflict(conflicts)) throw new ConflictError(conflictMessage(conflicts))
   }
-
-  const conflicts = await collectConflicts(client, {
-    propertyId: property.id,
-    checkIn: input.checkIn,
-    checkOut: input.checkOut,
-  })
-  if (anyConflict(conflicts)) throw new ConflictError(conflictMessage(conflicts))
 
   const reservation = await client.$transaction(async (tx) => {
     const created = await tx.airbnbReservation.create({
       data: {
-        propertyId: property.id,
+        propertyId: property?.id ?? null,
         reservationNumber: input.reservationNumber,
         guestName: input.guestName,
         primaryPhone: input.primaryPhone,
@@ -428,9 +426,11 @@ export async function createAirbnb(
       include: { ...propertyRefInclude, ...airbnbGuestInclude },
     })
 
-    await tx.blockedDate.createMany({
-      data: materializeBlockedDateRows(property.id, input.checkIn, input.checkOut, created.id),
-    })
+    if (property) {
+      await tx.blockedDate.createMany({
+        data: materializeBlockedDateRows(property.id, input.checkIn, input.checkOut, created.id),
+      })
+    }
 
     return created
   })
@@ -441,38 +441,37 @@ export async function createAirbnb(
 export async function updateAirbnb(
   client: PrismaClient,
   id: string,
-  input: AirbnbDetailsInput & { propertyId: string; notes?: string }
+  input: AirbnbDetailsInput & { propertyId: string | null; notes?: string }
 ): Promise<AdminAirbnbDto> {
   const existing = await client.airbnbReservation.findUnique({
     where: { id },
-    select: { id: true, reservationNumber: true },
+    select: { id: true },
   })
   if (!existing) throw new NotFoundError('Airbnb reservation not found.')
 
-  const property = await client.property.findFirst({
-    where: { OR: [{ id: input.propertyId }, { slug: input.propertyId }] },
-    select: { id: true, capacity: true },
-  })
-  if (!property) throw new NotFoundError('Property not found.')
-  if (input.guestCount > property.capacity) {
+  // propertyId null un-assigns a submission: validations and blocked nights
+  // only apply once a home is chosen. Assigning or moving a reservation to a
+  // home replaces its blocked nights and re-checks availability there.
+  const property = input.propertyId
+    ? await client.property.findFirst({
+        where: { OR: [{ id: input.propertyId }, { slug: input.propertyId }] },
+        select: { id: true, capacity: true },
+      })
+    : null
+  if (input.propertyId && !property) throw new NotFoundError('Property not found.')
+  if (property && input.guestCount > property.capacity) {
     throw new BadRequestError(`This property sleeps up to ${property.capacity} guests.`)
   }
 
-  if (input.reservationNumber !== existing.reservationNumber) {
-    const dup = await client.airbnbReservation.findUnique({
-      where: { reservationNumber: input.reservationNumber },
-      select: { id: true },
+  if (property) {
+    const conflicts = await collectConflicts(client, {
+      propertyId: property.id,
+      checkIn: input.checkIn,
+      checkOut: input.checkOut,
+      excludeAirbnbId: id,
     })
-    if (dup) throw new ConflictError('A reservation with this Airbnb confirmation number already exists.')
+    if (anyConflict(conflicts)) throw new ConflictError(conflictMessage(conflicts))
   }
-
-  const conflicts = await collectConflicts(client, {
-    propertyId: property.id,
-    checkIn: input.checkIn,
-    checkOut: input.checkOut,
-    excludeAirbnbId: id,
-  })
-  if (anyConflict(conflicts)) throw new ConflictError(conflictMessage(conflicts))
 
   const reservation = await client.$transaction(async (tx) => {
     await tx.blockedDate.deleteMany({ where: { airbnbReservationId: id } })
@@ -480,7 +479,7 @@ export async function updateAirbnb(
     const updated = await tx.airbnbReservation.update({
       where: { id },
       data: {
-        propertyId: property.id,
+        propertyId: property?.id ?? null,
         reservationNumber: input.reservationNumber,
         guestName: input.guestName,
         primaryPhone: input.primaryPhone,
@@ -501,9 +500,11 @@ export async function updateAirbnb(
       include: { ...propertyRefInclude, ...airbnbGuestInclude },
     })
 
-    await tx.blockedDate.createMany({
-      data: materializeBlockedDateRows(property.id, input.checkIn, input.checkOut, updated.id),
-    })
+    if (property) {
+      await tx.blockedDate.createMany({
+        data: materializeBlockedDateRows(property.id, input.checkIn, input.checkOut, updated.id),
+      })
+    }
 
     return updated
   })
@@ -542,6 +543,81 @@ export async function deleteAirbnb(client: PrismaClient, id: string): Promise<{ 
   // Cascading delete removes the reservation's blocked-date rows.
   await client.airbnbReservation.delete({ where: { id } })
   return { deleted: true }
+}
+
+// ── DATABASE CLEANUP ────────────────────────────────────────────────────────
+//
+// Destructive, admin-only maintenance operations (behind auth + CSRF + an
+// explicit confirmation phrase at the route layer). They delete test/direct
+// bookings, Airbnb reservations and blocked dates, but NEVER touch the
+// Property rows or their configuration, and never drop tables/databases.
+
+export interface CleanupResult {
+  deletedBookings: number
+  deletedGuests: number
+  deletedReservations: number
+  deletedAirbnbGuests: number
+  deletedBlockedDates: number
+}
+
+function emptyCleanupResult(): CleanupResult {
+  return {
+    deletedBookings: 0,
+    deletedGuests: 0,
+    deletedReservations: 0,
+    deletedAirbnbGuests: 0,
+    deletedBlockedDates: 0,
+  }
+}
+
+/** Delete all direct bookings and their guest records. Properties are kept. */
+export async function clearBookings(client: PrismaClient): Promise<CleanupResult> {
+  return client.$transaction(async (tx) => {
+    const guests = await tx.guest.deleteMany({})
+    const bookings = await tx.booking.deleteMany({})
+    return { ...emptyCleanupResult(), deletedBookings: bookings.count, deletedGuests: guests.count }
+  })
+}
+
+/** Delete all Airbnb reservations, their guest records and their blocked nights. */
+export async function clearAirbnb(client: PrismaClient): Promise<CleanupResult> {
+  return client.$transaction(async (tx) => {
+    const guests = await tx.airbnbGuest.deleteMany({})
+    const blocked = await tx.blockedDate.deleteMany({ where: { airbnbReservationId: { not: null } } })
+    const reservations = await tx.airbnbReservation.deleteMany({})
+    return {
+      ...emptyCleanupResult(),
+      deletedReservations: reservations.count,
+      deletedAirbnbGuests: guests.count,
+      deletedBlockedDates: blocked.count,
+    }
+  })
+}
+
+/** Delete only the blocked nights generated by Airbnb reservations. */
+export async function clearAirbnbBlockedDates(client: PrismaClient): Promise<CleanupResult> {
+  return client.$transaction(async (tx) => {
+    const blocked = await tx.blockedDate.deleteMany({ where: { airbnbReservationId: { not: null } } })
+    return { ...emptyCleanupResult(), deletedBlockedDates: blocked.count }
+  })
+}
+
+/** Delete every booking-related row (bookings, guests, Airbnb, all blocked dates) while preserving the properties. */
+export async function clearAllBookingData(client: PrismaClient): Promise<CleanupResult> {
+  return client.$transaction(async (tx) => {
+    const guests = await tx.guest.deleteMany({})
+    const airbnbGuests = await tx.airbnbGuest.deleteMany({})
+    const blocked = await tx.blockedDate.deleteMany({})
+    const bookings = await tx.booking.deleteMany({})
+    const reservations = await tx.airbnbReservation.deleteMany({})
+    return {
+      deletedBookings: bookings.count,
+      deletedGuests: guests.count,
+      deletedReservations: reservations.count,
+      deletedAirbnbGuests: airbnbGuests.count,
+      deletedBlockedDates: blocked.count,
+    }
+  })
 }
 
 // ── PROPERTIES ─────────────────────────────────────────────────────────────

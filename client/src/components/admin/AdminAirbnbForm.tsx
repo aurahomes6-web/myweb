@@ -38,10 +38,8 @@ export function AdminAirbnbForm({ editing, onSaved, onCancel }: AdminAirbnbFormP
 
   function validate(): string[] {
     const errors = validateGuestsRows(guests)
-    if (!propertyId) errors.push('Choose a property.')
-    if (!reservationNumber.trim()) errors.push('Reservation number is required.')
-    if (!guestName.trim()) errors.push('Guest name is required.')
     if (!isValidRange(checkIn, checkOut)) errors.push('Check-out must be after check-in.')
+    if (!guestName.trim()) errors.push('Guest name is required.')
     if (selectedProperty && guests.length > selectedProperty.capacity) {
       errors.push(`${selectedProperty.name} sleeps up to ${selectedProperty.capacity} guests.`)
     }
@@ -98,7 +96,7 @@ export function AdminAirbnbForm({ editing, onSaved, onCancel }: AdminAirbnbFormP
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-bright">
-            Airbnb {isNew ? '· New reservation' : `· ${editing?.reservationNumber}`}
+            Airbnb {isNew ? '· New reservation' : `· ${editing?.reservationNumber || 'Unassigned'}`}
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
             {isNew ? 'NEW AIRBNB RESERVATION' : 'UPDATE RESERVATION'}
@@ -119,9 +117,9 @@ export function AdminAirbnbForm({ editing, onSaved, onCancel }: AdminAirbnbFormP
 
       <form onSubmit={handleSubmit} className="card-surface flex flex-col gap-7 rounded-panel p-6 sm:p-8">
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Property">
+          <Field label="Property" hint={propertyId ? undefined : 'Unassigned: choosing a home will block those nights on the public calendar.'}>
             <Select value={propertyId} onChange={(event) => setPropertyId(event.target.value)} disabled={propertyStatus !== 'ready' || submitting}>
-              <option value="">Select a property…</option>
+              <option value="">No home yet (unassigned)</option>
               {properties.map((property) => (
                 <option key={property.id} value={property.id}>
                   {property.name} (up to {property.capacity} guests)
@@ -129,7 +127,7 @@ export function AdminAirbnbForm({ editing, onSaved, onCancel }: AdminAirbnbFormP
               ))}
             </Select>
           </Field>
-          <Field label="Reservation number">
+          <Field label="Reservation number" hint="Optional — may be left empty.">
             <TextInput
               value={reservationNumber}
               onChange={(event) => setReservationNumber(event.target.value.toUpperCase())}

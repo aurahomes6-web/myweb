@@ -198,7 +198,7 @@ export function AirbnbTab() {
                     className="border-b border-surface-300/20 transition-colors last:border-b-0 hover:bg-surface-100/40"
                   >
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-text-primary">{reservation.reservationNumber}</p>
+                      <p className="font-semibold text-text-primary">{reservation.reservationNumber || 'No number'}</p>
                       <p className="mt-0.5 text-xs text-text-muted">{reservation.nights} night{reservation.nights === 1 ? '' : 's'}</p>
                     </td>
                     <td className="px-5 py-4">
@@ -209,8 +209,18 @@ export function AirbnbTab() {
                       <p className="mt-0.5 text-xs text-text-muted">{reservation.primaryPhone}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="text-text-primary">{reservation.property.name}</p>
-                      <p className="mt-0.5 text-xs text-text-muted">{reservation.property.shortLabel}</p>
+                      {reservation.property ? (
+                        <>
+                          <p className="text-text-primary">{reservation.property.name}</p>
+                          <p className="mt-0.5 text-xs text-text-muted">{reservation.property.shortLabel}</p>
+                        </>
+                      ) : (
+                        <p>
+                          <span className="inline-flex items-center rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
+                            Unassigned
+                          </span>
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <p className="text-text-primary">{formatShortDate(reservation.checkIn)}</p>

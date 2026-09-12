@@ -12,6 +12,10 @@ import {
   NotFoundError,
   cancelAirbnb,
   cancelBooking,
+  clearAirbnb,
+  clearAirbnbBlockedDates,
+  clearAllBookingData,
+  clearBookings,
   createAirbnb,
   deleteAirbnb,
   deleteProperty,
@@ -187,4 +191,48 @@ export const deletePropertyHandler = wrap(async (req: Request, res: Response) =>
   const id = typeof req.params.id === 'string' ? req.params.id : ''
   const result = await deleteProperty(prisma, id)
   res.json(result)
+})
+
+// ── database cleanup ────────────────────────────────────────────────────────
+//
+// Destructive maintenance actions. The routers mount these behind BOTH
+// requireCsrfHeader and the authenticated admin guard, and each handler still
+// demands an explicit confirmation phrase so a stray request can never trigger
+// a wipe. Properties and their configuration are never touched.
+
+const CLEANUP_CONFIRM_DELETE = 'DELETE'
+const CLEANUP_CONFIRM_DELETE_ALL = 'DELETE ALL'
+
+function requireCleanupConfirmation(req: Request, res: Response, expected: string): boolean {
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const confirm = typeof body.confirm === 'string' ? body.confirm.trim().toUpperCase() : ''
+  if (confirm !== expected) {
+    res.status(400).json(apiError('INVALID_CONFIRMATION', `Type “${expected}” to confirm this action.`))
+    return false
+  }
+  return true
+}
+
+export const clearBookingsHandler = wrap(async (req: Request, res: Response) => {
+  if (!requireCleanupConfirmation(req, res, CLEANUP_CONFIRM_DELETE)) return
+  const result = await clearBookings(prisma)
+  res.json({ ok: true, result })
+})
+
+export const clearAirbnbHandler = wrap(async (req: Request, res: Response) => {
+  if (!requireCleanupConfirmation(req, res, CLEANUP_CONFIRM_DELETE)) return
+  const result = await clearAirbnb(prisma)
+  res.json({ ok: true, result })
+})
+
+export const clearAirbnbBlockedDatesHandler = wrap(async (req: Request, res: Response) => {
+  if (!requireCleanupConfirmation(req, res, CLEANUP_CONFIRM_DELETE)) return
+  const result = await clearAirbnbBlockedDates(prisma)
+  res.json({ ok: true, result })
+})
+
+export const clearAllBookingDataHandler = wrap(async (req: Request, res: Response) => {
+  if (!requireCleanupConfirmation(req, res, CLEANUP_CONFIRM_DELETE_ALL)) return
+  const result = await clearAllBookingData(prisma)
+  res.json({ ok: true, result })
 })

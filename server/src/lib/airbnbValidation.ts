@@ -165,7 +165,11 @@ export function validateAirbnbDetails(body: unknown): AirbnbDetailsResult {
 
 /** Airbnb payload as submitted by the authenticated admin (adds property + notes). */
 export interface AdminAirbnbInput extends AirbnbDetailsInput {
-  propertyId: string
+  /**
+   * Null when the reservation has no home yet (public submission waiting for
+   * the admin to assign it). Assigning a home blocks those nights.
+   */
+  propertyId: string | null
   notes?: string
 }
 
@@ -183,15 +187,11 @@ export function validateAdminAirbnb(body: unknown): AdminAirbnbResult {
   const propertyId = asTrimmed(body.propertyId)
   const notes = asTrimmed(body.notes, 1000)
 
-  if (!propertyId) {
-    return { ok: false, issues: [{ field: 'propertyId', message: 'A property is required.' }] }
-  }
-
   return {
     ok: true,
     value: {
       ...base.value,
-      propertyId: propertyId as string,
+      propertyId: propertyId || null,
       notes: notes ?? undefined,
     },
   }
