@@ -10,9 +10,12 @@ import { API_BASE_URL } from '@/config/api'
  * Airbnb reservation-details → WhatsApp (Phase 7).
  *
  * This flow is stateless: `POST /api/airbnb/details` validates the customer's
- * Airbnb reservation information and returns the MASKED WhatsApp message plus
- * the recipient number for a click-to-chat link. It never creates a website
- * booking and never generates an AURA booking ID.
+ * Airbnb reservation information and returns the WhatsApp message plus the
+ * recipient number for a click-to-chat link. That message carries each guest's
+ * full Aadhaar for the customer's own documentary send — it is returned only
+ * inside this submission response and never stored anywhere. The reservation
+ * number is optional. This flow never creates a website booking and never
+ * generates an AURA booking ID.
  */
 export const AIRBNB_ENDPOINT = `${API_BASE_URL}/api/airbnb/details`
 

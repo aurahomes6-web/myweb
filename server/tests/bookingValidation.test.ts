@@ -95,6 +95,32 @@ test('isAadhaarNumber helper accepts trimmed 12-digit string', () => {
   assert.equal(isAadhaarNumber('12345678901'), false)
 })
 
+test('Aadhaar must be EXACTLY 12 digits — 11 or 13 digits are rejected', () => {
+  const eleven = baseBody()
+  eleven.guests[1].aadhaarNumber = '12345678901' // 11 digits
+  const elevenResult = validateCreateBooking(eleven)
+  assert.equal(
+    elevenResult.ok,
+    false,
+    '11-digit Aadhaar must be rejected' + JSON.stringify(elevenResult)
+  )
+
+  const thirteen = baseBody()
+  thirteen.guests[1].aadhaarNumber = '1234567890123' // 13 digits
+  const thirteenResult = validateCreateBooking(thirteen)
+  assert.equal(
+    thirteenResult.ok,
+    false,
+    '13-digit Aadhaar must be rejected' + JSON.stringify(thirteenResult)
+  )
+
+  const letters = baseBody()
+  letters.guests[1].aadhaarNumber = '12345678901A'
+  assert.equal(validateCreateBooking(letters).ok, false, 'non-digit Aadhaar must be rejected')
+
+  assert.equal(isAadhaarNumber('123456789012'), true, 'valid 12-digit must stay accepted')
+})
+
 test('isIndianPhone accepts +91 prefix and 10-digit mobile', () => {
   assert.equal(isIndianPhone('9812345678'), true)
   assert.equal(isIndianPhone('+91 98123 45678'), true)

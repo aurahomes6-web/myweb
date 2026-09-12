@@ -223,7 +223,9 @@ export default function GuestDetailsForm({
     // submit click is still in the user activation (window.open after an
     // await/navigation is silently blocked), then point it at the wa.me link
     // once the booking exists. Closed again if the request fails or WhatsApp
-    // is not configured. Only masked Aadhaar ever reaches the URL.
+    // is not configured. The prefilled message (`booking.whatsAppMessage`)
+    // carries each guest's full Aadhaar for this documentary send — it never
+    // touches the booking ID, path, query params, storage or logs.
     let whatsAppPopup: Window | null = null
     try {
       whatsAppPopup = window.open('', '_blank')

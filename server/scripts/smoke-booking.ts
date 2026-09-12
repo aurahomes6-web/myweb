@@ -6,7 +6,8 @@
  *   - real Supabase credentials in server/.env (never committed)
  *
  * Runs the real double-booking / conflict flow against the live database:
- *   1. Create a booking → expect 201 CONFIRMED, masked-only Aadhaar.
+ *   1. Create a booking → expect 201 CONFIRMED; masked guests everywhere, with
+ *      full Aadhaar ONLY inside the `whatsAppMessage` pre-fill.
  *   2. Overlapping stay for the same property → expect 409 PROPERTY_UNAVAILABLE.
  *   3. Adjacent stay (check-in == prior check-out) → expect 201.
  *   4. Public lookup → expect booking + safe guest list, masked-only Aadhaar.
@@ -87,11 +88,20 @@ async function run(): Promise<void> {
   assert.equal(first.status, 201, 'First booking should be created (201)')
   const firstBooking = first.body as Record<string, unknown>
   assert.equal(firstBooking.status, 'CONFIRMED')
-  const firstJson = JSON.stringify(firstBooking)
-  assert.ok(!firstJson.includes('123456789012'), 'Full Aadhaar must never appear in API responses')
-  assert.ok(!firstJson.includes('987654321098'), 'Full Aadhaar must never appear in API responses')
-  assert.ok(!firstJson.includes('"aadhaarNumber":'), 'Raw Aadhaar key must never appear in API responses')
-  assert.ok(firstJson.includes('"aadhaarNumberMasked":"********9012"'), 'Masked Aadhaar must be returned instead')
+  // The create response carries the customer's own WhatsApp pre-fill message.
+  // Full Aadhaar is allowed ONLY inside `whatsAppMessage`. Everywhere else in
+  // the response it must stay masked.
+  const message = firstBooking.whatsAppMessage
+  assert.equal(typeof message, 'string')
+  assert.ok((message as string).includes('123456789012'), 'direct booking message must contain full Aadhaar 1')
+  assert.ok((message as string).includes('987654321098'), 'direct booking message must contain full Aadhaar 2')
+  const safeBody = { ...firstBooking }
+  delete safeBody.whatsAppMessage
+  const safeJson = JSON.stringify(safeBody)
+  assert.ok(!safeJson.includes('123456789012'), 'Full Aadhaar must never appear outside the WhatsApp message')
+  assert.ok(!safeJson.includes('987654321098'), 'Full Aadhaar must never appear outside the WhatsApp message')
+  assert.ok(!safeJson.includes('"aadhaarNumber":'), 'Raw Aadhaar key must never appear in API responses')
+  assert.ok(safeJson.includes('"aadhaarNumberMasked":"********9012"'), 'Masked Aadhaar must be returned instead')
   const firstCode = firstBooking.code as string
   createdCodes.push(firstCode)
   console.log(`PASS  1. created ${property.slug} ${start}→${end} code ${firstCode}`)
@@ -149,13 +159,16 @@ async function run(): Promise<void> {
     }),
   })
   assert.equal(airbnb.status, 200, 'Airbnb details should be accepted (200)')
-  const airbnbBody = airbnb.body as { status: string; message: string; recipient?: string }
+  const airbnbBody = airbnb.body as { status: string; reservationNumber: string; message: string; recipient?: string }
   assert.equal(airbnbBody.status, 'ok')
   assert.equal(airbnbBody.recipient, '919481130067')
   assert.ok(airbnbBody.message.includes('AIRBNB RESERVATION'), 'airbnb message header missing')
   assert.ok(airbnbBody.message.includes('HMY9TR4US9'), 'airbnb reservation number missing')
-  assert.ok(airbnbBody.message.includes('Aadhaar: ********9012'), 'masked aadhaar missing')
-  assert.ok(!airbnbBody.message.includes('123456789012'), 'full aadhaar leaked into airbnb message')
+  // Full Aadhaar is required inside the Airbnb WhatsApp pre-fill message.
+  assert.ok(airbnbBody.message.includes('Aadhaar: 123456789012'), 'full aadhaar 1 missing from airbnb message')
+  assert.ok(airbnbBody.message.includes('Aadhaar: 987654321098'), 'full aadhaar 2 missing from airbnb message')
+  const airbnbResponseJson = JSON.stringify({ status: airbnbBody.status, reservationNumber: airbnbBody.reservationNumber, recipient: airbnbBody.recipient })
+  assert.ok(!airbnbResponseJson.includes('aadhaar'), 'full aadhaar must only exist inside the intended WhatsApp message')
   const bookingCountAfter = await prisma.booking.count()
   assert.equal(
     bookingCountAfter,

@@ -63,9 +63,31 @@ test('buildWhatsAppMessage includes booking fields, nights, and the masked Aadha
   assert.ok(message.includes('+91 9812345678'))
   assert.ok(message.includes('Female'))
   assert.ok(message.includes('Age 34'))
-  // Aadhaar is MASKED to the last 4 digits only — the full number never appears.
+  // Aadhaar is MASKED to the last 4 digits by default — the full number never appears.
   assert.ok(message.includes('Aadhaar: ********9012'))
   assert.ok(!message.includes('123456789012'))
+})
+
+test('buildWhatsAppMessage with fullAadhaar includes every full 12-digit Aadhaar', () => {
+  const message = buildWhatsAppMessage(
+    {
+      code: 'AURATEST1234',
+      propertyName: 'Aura Cozy Penthouse',
+      checkIn: '2030-01-10',
+      checkOut: '2030-01-13',
+      guestCount: 2,
+      primaryPhone: '9812345678',
+      guests: [
+        { fullName: 'Asha Rao', aadhaarNumber: '123456789012', gender: GuestGender.FEMALE, age: 34 },
+        { fullName: 'Ravi Rao', aadhaarNumber: '987654321098', gender: GuestGender.MALE, age: 38 },
+      ],
+    },
+    { fullAadhaar: true }
+  )
+  // The full 12-digit number appears once per guest in the message body.
+  assert.ok(message.includes('Aadhaar: 123456789012'))
+  assert.ok(message.includes('Aadhaar: 987654321098'))
+  assert.ok(!message.includes('********'))
 })
 
 test('sendBookingNotification does not throw and never claims a send', async () => {

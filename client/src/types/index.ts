@@ -98,6 +98,13 @@ export interface BookingResponse {
     sent: boolean
     recipient?: string
   } | null
+  /**
+   * The customer's own WhatsApp pre-fill message. Present ONLY in the create
+   * response (POST /api/bookings) and carries the full 12-digit Aadhaar exactly
+   * so it can be placed into the wa.me click-to-chat link. The public GET
+   * lookup never includes it — after a refresh only the masked view remains.
+   */
+  whatsAppMessage?: string
 }
 
 export type BookingErrorCode =
@@ -140,7 +147,11 @@ export interface AirbnbFormData {
   guests: AirbnbGuestPayload[]
 }
 
-/** Stateless server response: the masked message is built server-side. */
+/**
+ * Stateless server response for the Airbnb → WhatsApp flow. `message` is the
+ * WhatsApp pre-fill and carries each guest's full Aadhaar for the customer's
+ * own documentary send; it is returned only inside this submission response.
+ */
 export interface AirbnbDetailsResult {
   status: 'ok'
   reservationNumber: string

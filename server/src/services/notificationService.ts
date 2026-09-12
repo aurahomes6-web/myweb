@@ -12,10 +12,15 @@ import { formatDateKey, nightsBetween } from '../lib/dateUtils.js'
  * status and opens the door for a real provider later.
  *
  * Security rules:
- *   - The WhatsApp message body only ever contains the MASKED Aadhaar (last 4
- *     digits). The full number is never placed in a message body, and must
- *     never be written to logs, responses, console output, URLs or any other
- *     channel.
+ *   - The MASKED Aadhaar (last 4 digits) is the default everywhere, including
+ *     any server-side notification message. The full number is only placed in
+ *     a message body when the caller explicitly requests it with
+ *     `{ fullAadhaar: true }` — and that is done exclusively for the customer's
+ *     own WhatsApp pre-fill, which is returned in the submission response and
+ *     put straight into a wa.me click-to-chat link.
+ *   - The full number is never written to logs, console output, booking codes,
+ *     URL paths, query parameters (other than that intended pre-fill), or any
+ *     response that is not that WhatsApp pre-fill.
  *   - API credentials stay in server/.env only and are never returned to the
  *     frontend. Only the recipient number (a public value) is exposed so the
  *     client can offer a manual WhatsApp click-to-chat action.
@@ -61,19 +66,25 @@ const GENDER_DISPLAY: Record<GuestGender, string> = {
 }
 
 /**
- * Compose the fully-formatted WhatsApp booking message. Aadhaar numbers are
- * always masked to the last 4 digits here — this is the single source of truth
- * for the message body so a later real provider cannot leak them either.
+ * Compose the fully-formatted WhatsApp booking message.
+ *
+ * By default Aadhaar numbers are masked to the last 4 digits. Pass
+ * `{ fullAadhaar: true }` ONLY to produce the customer's own WhatsApp pre-fill
+ * — that single message is delivered straight into a wa.me click-to-chat link
+ * and is never written to logs or stored anywhere.
  */
-export function buildWhatsAppMessage(payload: BookingNotificationPayload): string {
+export function buildWhatsAppMessage(
+  payload: BookingNotificationPayload,
+  options: { fullAadhaar?: boolean } = {}
+): string {
   const primary = payload.guests[0]
   const nights = nightsBetween(payload.checkIn, payload.checkOut)
 
   const guestLines = payload.guests
-    .map(
-      (guest, index) =>
-        `${index + 1}. ${guest.fullName} | Aadhaar: ${maskAadhaar(guest.aadhaarNumber)} | ${GENDER_DISPLAY[guest.gender]} | Age ${guest.age}`
-    )
+    .map((guest, index) => {
+      const aadhaar = options.fullAadhaar ? guest.aadhaarNumber : maskAadhaar(guest.aadhaarNumber)
+      return `${index + 1}. ${guest.fullName} | Aadhaar: ${aadhaar} | ${GENDER_DISPLAY[guest.gender]} | Age ${guest.age}`
+    })
     .join('\n')
 
   return [
@@ -99,13 +110,22 @@ export function buildWhatsAppMessage(payload: BookingNotificationPayload): strin
 
 /**
  * Compose the Airbnb reservation message for WhatsApp (Phase 7).
- * Aadhaar numbers are always masked to the last 4 digits.
+ *
+ * By default Aadhaar numbers are masked to the last 4 digits; pass
+ * `{ fullAadhaar: true }` ONLY for the customer's own WhatsApp pre-fill. The
+ * reservation number is optional — when it is empty the line is omitted.
  */
-export function buildAirbnbWhatsAppMessage(payload: AirbnbDetailsInput): string {
+export function buildAirbnbWhatsAppMessage(
+  payload: AirbnbDetailsInput,
+  options: { fullAadhaar?: boolean } = {}
+): string {
   const lines: string[] = ['🏠 AURA HOMES', 'AIRBNB RESERVATION', '']
 
-  const flight = [
-    `Airbnb Reservation No: ${payload.reservationNumber}`,
+  const flight: string[] = []
+  if (payload.reservationNumber) {
+    flight.push(`Airbnb Reservation No: ${payload.reservationNumber}`)
+  }
+  flight.push(
     `Guest Name: ${payload.guestName}`,
     `Phone: ${payload.primaryPhone}`,
     '',
@@ -114,15 +134,16 @@ export function buildAirbnbWhatsAppMessage(payload: AirbnbDetailsInput): string 
     `Guests: ${payload.guestCount}`,
     '',
     'GUEST DETAILS',
-    '',
-  ]
+    ''
+  )
   lines.push(...flight)
 
   payload.guests.forEach((guest, index) => {
+    const aadhaar = options.fullAadhaar ? guest.aadhaarNumber : maskAadhaar(guest.aadhaarNumber)
     lines.push(
       `Guest ${index + 1}`,
       `Name: ${guest.fullName}`,
-      `Aadhaar: ${maskAadhaar(guest.aadhaarNumber)}`,
+      `Aadhaar: ${aadhaar}`,
       `Gender: ${GENDER_DISPLAY[guest.gender]}`,
       `Age: ${guest.age}`,
       ''

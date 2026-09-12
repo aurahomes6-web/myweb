@@ -13,8 +13,12 @@ import { API_BASE_URL } from '@/config/api'
  * AURA HOMES API (Express), which stores the confirmed booking and per-guest
  * registration in Supabase via Prisma:
  *
- *   POST /api/bookings        → Create a booking        (201 / 400 / 404 / 409 / 500)
- *   GET  /api/bookings/:id    → Public booking lookup   (no Aadhaar ever returned)
+ *   POST /api/bookings         → Create a booking (201 / 400 / 404 / 409 / 500).
+ *                                Response includes `whatsAppMessage` (the
+ *                                customer's WhatsApp pre-fill with full Aadhaar)
+ *                                and masked `guests`, and never a raw Aadhaar.
+ *   GET  /api/bookings/:id     → Public booking lookup. Masked Aadhaar only —
+ *                                no `whatsAppMessage`, no full Aadhaar ever.
  *
  * The Vite dev server proxies `/api` to the API server (see vite.config.ts).
  */

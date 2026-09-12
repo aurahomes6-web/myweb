@@ -46,13 +46,15 @@ test('accepts and normalises a valid Airbnb details payload', () => {
   assert.equal(result.ok && result.value.guests[0].gender, 'MALE')
 })
 
-test('rejects a missing Airbnb reservation number', () => {
+test('accepts a missing Airbnb reservation number (empty → omitted)', () => {
   const body = baseBody()
   body.reservationNumber = '   '
-  expectIssue(body, 'reservationNumber', /required/i)
+  const result = validateAirbnbDetails(body)
+  assert.equal(result.ok, true, 'reservation number must be optional' + JSON.stringify(result))
+  assert.equal(result.ok && result.value.reservationNumber, '')
 })
 
-test('rejects an invalid Airbnb reservation number', () => {
+test('rejects an invalid Airbnb reservation number when one is provided', () => {
   const body = baseBody()
   body.reservationNumber = 'AB!'
   expectIssue(body, 'reservationNumber', /invalid/i)
@@ -156,7 +158,7 @@ test('WhatsApp message contains reservation number, guest details and dates', ()
   assert.ok(message.includes('Age: 26'))
 })
 
-test('WhatsApp message contains ONLY the last 4 Aadhaar digits', () => {
+test('WhatsApp message contains ONLY the last 4 Aadhaar digits by default', () => {
   const result = validateAirbnbDetails(baseBody())
   assert.ok(result.ok)
   if (!result.ok) return
@@ -167,4 +169,27 @@ test('WhatsApp message contains ONLY the last 4 Aadhaar digits', () => {
   assert.ok(!message.includes('123456789012'), 'full Aadhaar 1 leaked into message')
   assert.ok(!message.includes('987654321098'), 'full Aadhaar 2 leaked into message')
   assert.ok(!message.includes('1234567890'), 'prefix of Aadhaar leaked into message')
+})
+
+test('WhatsApp message with fullAadhaar contains the full Aadhaar for each guest', () => {
+  const result = validateAirbnbDetails(baseBody())
+  assert.ok(result.ok)
+  if (!result.ok) return
+  const message = buildAirbnbWhatsAppMessage(result.value, { fullAadhaar: true })
+
+  assert.ok(message.includes('Aadhaar: 123456789012'))
+  assert.ok(message.includes('Aadhaar: 987654321098'))
+  assert.ok(!message.includes('********'))
+})
+
+test('WhatsApp message omits the reservation line when the number is empty', () => {
+  const body = baseBody()
+  body.reservationNumber = ''
+  const result = validateAirbnbDetails(body)
+  assert.ok(result.ok)
+  if (!result.ok) return
+  const message = buildAirbnbWhatsAppMessage(result.value)
+
+  assert.ok(!message.includes('Airbnb Reservation No'))
+  assert.ok(message.includes('Guest Name: Rahul Kumar'))
 })

@@ -29,8 +29,11 @@ import type { BookingResponse } from '@/types'
  * opened by the booking form (browser-safe, within the click activation) and
  * is reported via `whatsAppOpened`. The effect below is only a fallback and is
  * kept for direct visits. A manual "Open WhatsApp" retry always works.
- * Nothing here ever re-submits or creates a second booking. Only the MASKED
- * Aadhaar (last 4 digits) can ever reach the URL.
+ * Nothing here ever re-submits or creates a second booking. The prefilled
+ * link uses `booking.whatsAppMessage` — the server-composed message that
+ * carries each guest's full Aadhaar for this documentary flow. On a refreshed
+ * ticket (public lookup) that message is absent and no link is offered, so a
+ * masked message is never sent.
  */
 function WhatsAppStep({
   booking,
@@ -103,7 +106,7 @@ function WhatsAppStep({
           </p>
 
           <pre className="mt-5 overflow-x-auto rounded-2xl border border-surface-300/50 bg-surface-100/40 p-5 font-mono text-xs leading-relaxed text-text-secondary">
-            {buildWhatsAppMessage(booking)}
+            {booking.whatsAppMessage ?? buildWhatsAppMessage(booking)}
           </pre>
 
           {waUrl ? (
@@ -115,6 +118,12 @@ function WhatsAppStep({
             >
               <Send size={14} /> Open WhatsApp
             </a>
+          ) : notif?.recipient ? (
+            <p className="mt-5 text-xs leading-relaxed text-text-muted">
+              The WhatsApp share link is only available right after completing
+              your booking. Your reservation is confirmed — call us if you need
+              to share your details again.
+            </p>
           ) : (
             <p className="mt-5 text-xs leading-relaxed text-text-muted">
               WhatsApp is not configured for this booking yet. Your reservation is
@@ -123,9 +132,9 @@ function WhatsAppStep({
           )}
 
           <p className="mt-4 text-[11px] leading-relaxed text-text-muted">
-            This opens WhatsApp with your booking details pre-filled. Press Send in
-            the chat to share it. Identity numbers are masked — the full Aadhaar is
-            never shared through this link.
+            Open WhatsApp and press Send to share this booking with Aura Homes.
+            Aadhaar numbers are included only in this message you send — they are
+            never shown publicly on this page.
           </p>
         </>
       )}

@@ -214,9 +214,11 @@ export default function AirbnbBookingPage() {
             </p>
 
             <div className="relative mt-7 flex flex-wrap items-center justify-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-surface-300/60 bg-surface-100/50 px-5 py-2.5 font-mono text-sm font-bold tracking-[0.1em] text-text-primary">
-                {result.reservationNumber}
-              </span>
+              {result.reservationNumber && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-surface-300/60 bg-surface-100/50 px-5 py-2.5 font-mono text-sm font-bold tracking-[0.1em] text-text-primary">
+                  {result.reservationNumber}
+                </span>
+              )}
               {url && (
                 <a
                   href={url}
@@ -243,7 +245,8 @@ export default function AirbnbBookingPage() {
             <p className="mt-3 text-sm leading-relaxed text-text-secondary">
               We did not create a new booking on our website — your reservation stays
               with Airbnb. Sending these details only helps our team prepare your
-              stay. Aadhaar numbers stay masked and are never shared through the link.
+              stay. Aadhaar numbers are included only in the WhatsApp message you
+              send — they are never shown on this page.
             </p>
           </div>
 
@@ -333,7 +336,8 @@ export default function AirbnbBookingPage() {
                 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary"
               >
                 <BadgeCheck size={13} className="text-cyan-bright" /> Reservation / confirmation number
-              </label>
+                  <span className="font-normal normal-case tracking-normal text-text-muted">(optional)</span>
+                </label>
               <input
                 id="airbnb-reservation-number"
                 type="text"
@@ -607,7 +611,7 @@ export default function AirbnbBookingPage() {
                     />
                     <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-muted">
                       <Lock size={11} className="shrink-0 text-text-muted" />
-                      Only the last 4 digits are sent through WhatsApp.
+                      Included in the WhatsApp message you send and never shown on this page.
                     </p>
                     <FieldError message={errors[`g${index}.aadhaar`]} />
                   </div>

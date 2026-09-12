@@ -59,8 +59,11 @@ export function normalizeAadhaar(value: string): string {
 
 /**
  * Mask an Aadhaar number so only the last 4 digits are visible.
- * Example: "123456789012" → "********9012". Used in WhatsApp messages and
- * every public-facing representation — the full number is never exposed.
+ * Example: "123456789012" → "********9012". This is the default for every
+ * public-facing representation — the full number is never exposed except
+ * inside the customer's own WhatsApp pre-fill message (see notificationService
+ * `{ fullAadhaar: true }`), which is returned only in the submission response
+ * and placed straight into a click-to-chat link.
  */
 export function maskAadhaar(aadhaar: string): string {
   const digits = normalizeAadhaar(aadhaar)

@@ -12,6 +12,7 @@ import {
 import { resolveProperty } from '../services/availabilityService.js'
 import { generateBookingCode } from '../lib/bookingCode.js'
 import {
+  buildWhatsAppMessage,
   getWhatsAppStatus,
   sendBookingNotification,
   type BookingNotificationPayload,
@@ -38,7 +39,7 @@ export interface SafeGuest {
 }
 
 /** Raw guest record as read from the database (full Aadhaar stays server-side). */
-interface GuestRecordSelected {
+export interface GuestRecordSelected {
   fullName: string
   gender: GuestGender
   age: number
@@ -131,7 +132,7 @@ async function createBookingRecord(input: CreateBookingInput, propertyId: string
   throw new Error('Unable to allocate a unique booking code')
 }
 
-function serializeGuestSafe(guest: GuestRecordSelected): SafeGuest {
+export function serializeGuestSafe(guest: GuestRecordSelected): SafeGuest {
   return {
     fullName: guest.fullName,
     gender: guest.gender,
@@ -142,7 +143,7 @@ function serializeGuestSafe(guest: GuestRecordSelected): SafeGuest {
   }
 }
 
-function serializeBooking(booking: Booking, guests?: SafeGuest[]) {
+export function serializeBooking(booking: Booking, guests?: SafeGuest[]) {
   const safe = {
     id: booking.id,
     code: booking.code,
@@ -219,9 +220,8 @@ export async function createBookingHandler(req: Request, res: Response) {
 
   // The notification never fails the booking. A future WhatsApp provider can
   // throw here without affecting the confirmed reservation.
-  const notification = await sendBookingNotification(
-    buildNotificationPayload(booking, input, property.name)
-  ).catch((error: unknown) => {
+  const notifPayload = buildNotificationPayload(booking, input, property.name)
+  const notification = await sendBookingNotification(notifPayload).catch((error: unknown) => {
     console.error(
       `[notification] WhatsApp delivery failed after booking ${booking.code}:`,
       error
@@ -229,9 +229,15 @@ export async function createBookingHandler(req: Request, res: Response) {
     return { status: 'FAILED' as const, sent: false }
   })
 
+  // The customer's own WhatsApp pre-fill: full Aadhaar is included ONLY in this
+  // message, which the client puts straight into the wa.me click-to-chat link.
+  // The public GET lookup never carries a message or the full number.
+  const whatsAppMessage = buildWhatsAppMessage(notifPayload, { fullAadhaar: true })
+
   return res.status(201).json({
     ...serializeBooking(booking, booking.guestRecords.map(serializeGuestSafe)),
     property: { name: property.name, slug: property.slug, shortLabel: property.shortLabel },
+    whatsAppMessage,
     notification,
   })
 }

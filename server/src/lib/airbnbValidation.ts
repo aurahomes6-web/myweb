@@ -36,6 +36,7 @@ export interface AirbnbGuestInput {
 }
 
 export interface AirbnbDetailsInput {
+  /** Optional — customers may submit the details without one. Empty = omitted. */
   reservationNumber: string
   guestName: string
   primaryPhone: string
@@ -75,9 +76,9 @@ export function validateAirbnbDetails(body: unknown): AirbnbDetailsResult {
   const checkOut = asTrimmed(body.checkOut)
   const guestCount = parsePositiveInt(body.guestCount)
 
-  if (!reservationNumberRaw) {
-    issues.push({ field: 'reservationNumber', message: 'Airbnb reservation number is required.' })
-  } else if (!isAirbnbNumber(reservationNumberRaw)) {
+  // The reservation / confirmation number is OPTIONAL. When present it must
+  // be 4–24 alphanumeric characters; when empty the message omits the line.
+  if (reservationNumberRaw && !isAirbnbNumber(reservationNumberRaw)) {
     issues.push({
       field: 'reservationNumber',
       message: 'Airbnb reservation number looks invalid. Use 4 to 24 letters and numbers.',
@@ -151,7 +152,7 @@ export function validateAirbnbDetails(body: unknown): AirbnbDetailsResult {
   return {
     ok: true,
     value: {
-      reservationNumber: normalizeReservationNumber(reservationNumberRaw as string),
+      reservationNumber: reservationNumberRaw ? normalizeReservationNumber(reservationNumberRaw) : '',
       guestName: guestName as string,
       primaryPhone: normalizePhone(primaryPhone as string),
       checkIn: checkIn as string,

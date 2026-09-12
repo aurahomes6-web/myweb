@@ -46,9 +46,9 @@ function isISO(key: string): boolean {
 export function validateAirbnbForm(form: AirbnbFormState): Record<string, string> {
   const errors: Record<string, string> = {}
 
-  if (!form.reservationNumber.trim()) {
-    errors.reservationNumber = 'Airbnb reservation number is required.'
-  } else if (!/^[A-Z0-9]{4,24}$/.test(normalizeReservationNumber(form.reservationNumber))) {
+  // The reservation / confirmation number is OPTIONAL. When present it must
+  // be 4–24 alphanumeric characters; empty is accepted.
+  if (form.reservationNumber.trim() && !/^[A-Z0-9]{4,24}$/.test(normalizeReservationNumber(form.reservationNumber))) {
     errors.reservationNumber = 'Use 4 to 24 letters and numbers (e.g. ABC123456).'
   }
 
