@@ -25,16 +25,27 @@ import type { BookingResponse } from '@/types'
  * WhatsApp click-to-chat step (Phase 6).
  *
  * The booking is already confirmed in the database at this point. This card
- * opens WhatsApp once automatically, and always offers a manual "Open
- * WhatsApp" retry — nothing here ever re-submits or creates a second booking.
- * Only the MASKED Aadhaar (last 4 digits) can ever reach the URL.
+ * opens WhatsApp at most once automatically: normally the tab was already
+ * opened by the booking form (browser-safe, within the click activation) and
+ * is reported via `whatsAppOpened`. The effect below is only a fallback and is
+ * kept for direct visits. A manual "Open WhatsApp" retry always works.
+ * Nothing here ever re-submits or creates a second booking. Only the MASKED
+ * Aadhaar (last 4 digits) can ever reach the URL.
  */
-function WhatsAppStep({ booking, autoOpen }: { booking: BookingResponse; autoOpen?: boolean }) {
+function WhatsAppStep({
+  booking,
+  autoOpen,
+  whatsAppOpened,
+}: {
+  booking: BookingResponse
+  autoOpen?: boolean
+  whatsAppOpened?: boolean
+}) {
   const notif = booking.notification
   const waUrl = buildWhatsAppUrl(booking)
 
   useEffect(() => {
-    if (!autoOpen || notif?.sent === true || !waUrl) return
+    if (!autoOpen || whatsAppOpened || notif?.sent === true || !waUrl) return
     let opened = false
     try {
       const win = window.open(waUrl, '_blank', 'noopener,noreferrer')
@@ -297,6 +308,7 @@ export default function ConfirmationPage() {
           <WhatsAppStep
             booking={booking}
             autoOpen={(location.state as { autoWhatsApp?: boolean } | null)?.autoWhatsApp === true}
+            whatsAppOpened={(location.state as { whatsAppOpened?: boolean } | null)?.whatsAppOpened === true}
           />
 
           <button

@@ -163,8 +163,10 @@ export default function BookingPage() {
               checkIn={checkIn}
               checkOut={checkOut}
               guestCount={guests}
-              onSuccess={(booking: BookingResponse) => {
-                navigate('/confirmation', { state: { booking, autoWhatsApp: true } })
+              onSuccess={(booking: BookingResponse, whatsAppOpened?: boolean) => {
+                navigate('/confirmation', {
+                  state: { booking, autoWhatsApp: true, whatsAppOpened: whatsAppOpened === true },
+                })
               }}
             />
           )}

@@ -20,13 +20,14 @@ import type {
 } from '@/types'
 import { BookingApiError, createBooking } from '@/services/bookings'
 import { GENDER_OPTIONS } from '@/lib/gender'
+import { buildWhatsAppUrl } from '@/lib/whatsapp'
 
 interface GuestDetailsFormProps {
   property: Property
   checkIn: string
   checkOut: string
   guestCount: number
-  onSuccess: (booking: BookingResponse) => void
+  onSuccess: (booking: BookingResponse, whatsAppOpened?: boolean) => void
 }
 
 interface GuestRow {
@@ -197,6 +198,9 @@ export default function GuestDetailsForm({
     setBanner(null)
 
     if (Object.keys(nextErrors).length > 0) {
+      // Release the synchronous lock: a failed validation must not freeze the
+      // submit button for every later attempt.
+      submittingRef.current = false
       document.getElementById('guest-details')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
@@ -215,11 +219,34 @@ export default function GuestDetailsForm({
       })),
     }
 
+    // Browser-safe WhatsApp: reserve the target tab synchronously while the
+    // submit click is still in the user activation (window.open after an
+    // await/navigation is silently blocked), then point it at the wa.me link
+    // once the booking exists. Closed again if the request fails or WhatsApp
+    // is not configured. Only masked Aadhaar ever reaches the URL.
+    let whatsAppPopup: Window | null = null
+    try {
+      whatsAppPopup = window.open('', '_blank')
+    } catch {
+      whatsAppPopup = null
+    }
+
     setSubmitting(true)
     try {
       const booking = await createBooking(payload)
-      onSuccess(booking)
+      let whatsAppOpened = false
+      const waUrl = buildWhatsAppUrl(booking)
+      if (whatsAppPopup && !whatsAppPopup.closed) {
+        if (waUrl) {
+          whatsAppPopup.location.href = waUrl
+          whatsAppOpened = true
+        } else {
+          whatsAppPopup.close()
+        }
+      }
+      onSuccess(booking, whatsAppOpened)
     } catch (error) {
+      if (whatsAppPopup && !whatsAppPopup.closed) whatsAppPopup.close()
       setSubmitting(false)
       submittingRef.current = false
       if (error instanceof BookingApiError) {
