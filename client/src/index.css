@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces — deep forest → soft sage (dark luxury hospitality) */
+  /* Surfaces — deep forest green base + warm earthy brown elevated panels
+     (green + brown hybrid: canvas stays forest, panels warm cocoa→walnut→taupe) */
   --color-surface: #17352d;
-  --color-surface-50: #1b3b30;
-  --color-surface-100: #21453a;
-  --color-surface-200: #2c5449;
-  --color-surface-300: #3a6b5b;
-  --color-surface-400: #4e8370;
+  --color-surface-50: #3a2f23;
+  --color-surface-100: #4a3a2b;
+  --color-surface-200: #5a4633;
+  --color-surface-300: #6e5640;
+  --color-surface-400: #8a6a52;
 
-  /* Accents — champagne gold (primary) / soft sage (secondary) / muted champagne */
+  /* Accents — champagne gold (primary) / soft sage (secondary) / warm bronze */
   --color-purple: #d8be8a;
   --color-purple-bright: #e8d6a6;
   --color-cyan: #829b87;
   --color-cyan-bright: #a5b8a6;
-  --color-magenta: #c2a56c;
-  --color-magenta-bright: #d8be8a;
+  --color-magenta: #a8783f;
+  --color-magenta-bright: #c89a60;
 
-  /* Text — warm ivory / light sage / soft sage */
+  /* Text — warm ivory / warm parchment / warm taupe */
   --color-text-primary: #f7f4ec;
-  --color-text-secondary: #a9bcae;
-  --color-text-muted: #829b87;
+  --color-text-secondary: #c4b8a6;
+  --color-text-muted: #a1907d;
 
   /* Ink — near black for readable labels on light accents */
   --color-ink: #171b19;

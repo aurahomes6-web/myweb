@@ -15,7 +15,7 @@ const ACCENTS = ['purple', 'cyan', 'magenta'] as const
 const ACCENT_LABELS: Record<(typeof ACCENTS)[number], string> = {
   purple: 'Champagne',
   cyan: 'Sage',
-  magenta: 'Gold',
+  magenta: 'Bronze',
 }
 const VISUALS = ['moon', 'dawn', 'evening'] as const
 
