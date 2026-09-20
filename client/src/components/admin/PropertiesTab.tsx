@@ -86,7 +86,7 @@ export function PropertiesTab() {
                 </div>
                 <div
                   className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ background: property.accent || '#8B5CF6', boxShadow: `0 0 10px ${property.accent || '#8B5CF6'}` }}
+                  style={{ background: property.accent || '#A8783F', boxShadow: `0 0 10px ${property.accent || '#A8783F'}` }}
                 />
               </div>
 

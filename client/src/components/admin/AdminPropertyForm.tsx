@@ -12,6 +12,11 @@ interface AdminPropertyFormProps {
 }
 
 const ACCENTS = ['purple', 'cyan', 'magenta'] as const
+const ACCENT_LABELS: Record<(typeof ACCENTS)[number], string> = {
+  purple: 'Bronze',
+  cyan: 'Amber',
+  magenta: 'Copper',
+}
 const VISUALS = ['moon', 'dawn', 'evening'] as const
 
 function numberOr(name: string, fallback = 0): number {
@@ -143,7 +148,7 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
           </Field>
           <Field label="Accent">
             <Select value={accent} onChange={(event) => setAccent(event.target.value)} disabled={submitting}>
-              {ACCENTS.map((value) => <option key={value} value={value}>{value}</option>)}
+              {ACCENTS.map((value) => <option key={value} value={value}>{ACCENT_LABELS[value]}</option>)}
             </Select>
           </Field>
           <Field label="Visual artwork variant">

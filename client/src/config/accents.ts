@@ -8,7 +8,7 @@ export interface AccentPalette {
 }
 
 export const accentPalettes: Record<AccentKind, AccentPalette> = {
-  purple: { main: '#a855f7', bright: '#c084fc', dim: '#6d28d9', rgb: '168, 85, 247' },
-  cyan: { main: '#22d3ee', bright: '#67e8f9', dim: '#0e7490', rgb: '34, 211, 238' },
-  magenta: { main: '#ec4899', bright: '#f472b6', dim: '#9d174d', rgb: '236, 72, 153' },
+  purple: { main: '#a8783f', bright: '#d2a466', dim: '#5b411f', rgb: '168, 120, 63' },
+  cyan: { main: '#c18a34', bright: '#e0b265', dim: '#6a4a20', rgb: '193, 138, 52' },
+  magenta: { main: '#a9553a', bright: '#ce7d56', dim: '#542818', rgb: '169, 85, 58' },
 }

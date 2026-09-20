@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces — near black / charcoal */
-  --color-surface: #0a0a0f;
-  --color-surface-50: #0e0e16;
-  --color-surface-100: #13131d;
-  --color-surface-200: #1a1a28;
-  --color-surface-300: #262636;
-  --color-surface-400: #34344a;
+  /* Surfaces — deep espresso → chocolate → coffee */
+  --color-surface: #14100b;
+  --color-surface-50: #1a140d;
+  --color-surface-100: #221a12;
+  --color-surface-200: #2e2418;
+  --color-surface-300: #403326;
+  --color-surface-400: #554430;
 
-  /* Accents — subtle RGB lighting palette */
-  --color-purple: #a855f7;
-  --color-purple-bright: #c084fc;
-  --color-cyan: #22d3ee;
-  --color-cyan-bright: #67e8f9;
-  --color-magenta: #ec4899;
-  --color-magenta-bright: #f472b6;
+  /* Accents — warm bronze / amber / copper palette */
+  --color-purple: #a8783f;
+  --color-purple-bright: #d2a466;
+  --color-cyan: #c18a34;
+  --color-cyan-bright: #e0b265;
+  --color-magenta: #a9553a;
+  --color-magenta-bright: #ce7d56;
 
-  /* Text */
-  --color-text-primary: #f4f4f7;
-  --color-text-secondary: #a3a3b8;
-  --color-text-muted: #73738c;
+  /* Text — ivory / beige / muted warm brown */
+  --color-text-primary: #f5efe3;
+  --color-text-secondary: #cbb9a1;
+  --color-text-muted: #8d7c67;
 
   /* Typography */
   --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
@@ -35,9 +35,9 @@
   --shadow-card: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 24px 48px -28px rgb(0 0 0 / 0.85);
   --shadow-card-hover: inset 0 1px 0 0 rgb(255 255 255 / 0.06), 0 36px 72px -32px rgb(0 0 0 / 0.9);
   --shadow-soft: 0 18px 60px -30px rgb(0 0 0 / 0.7);
-  --shadow-glow-purple: 0 12px 48px -16px color-mix(in srgb, var(--color-purple) 45%, transparent);
-  --shadow-glow-cyan: 0 12px 48px -16px color-mix(in srgb, var(--color-cyan) 45%, transparent);
-  --shadow-glow-magenta: 0 12px 48px -16px color-mix(in srgb, var(--color-magenta) 45%, transparent);
+  --shadow-glow-purple: 0 12px 48px -16px color-mix(in srgb, var(--color-purple) 35%, transparent);
+  --shadow-glow-cyan: 0 12px 48px -16px color-mix(in srgb, var(--color-cyan) 35%, transparent);
+  --shadow-glow-magenta: 0 12px 48px -16px color-mix(in srgb, var(--color-magenta) 35%, transparent);
 
   --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -83,7 +83,7 @@
   }
 
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-purple) 65%, #fff);
+    outline: 2px solid color-mix(in srgb, var(--color-purple-bright) 60%, #fff);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -110,7 +110,7 @@
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(100deg, var(--color-purple-bright), var(--color-magenta) 55%, var(--color-cyan));
+    background: linear-gradient(100deg, var(--color-purple-bright), var(--color-cyan-bright) 55%, var(--color-magenta-bright));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -118,7 +118,7 @@
   }
 
   .text-hairline {
-    background: linear-gradient(100deg, var(--color-purple-bright), var(--color-cyan));
+    background: linear-gradient(100deg, var(--color-purple-bright), var(--color-cyan-bright));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -167,7 +167,7 @@
   }
 
   /* Native select used for the gender field: dark popup, light text, and the
-     same purple focus as the rest of the forms. color-scheme: dark makes the
+     same bronze focus as the rest of the forms. color-scheme: dark makes the
      browser draw the dropdown with dark chrome on Windows Chrome/Edge. */
   .select-glass {
     color-scheme: dark;
