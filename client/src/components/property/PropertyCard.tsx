@@ -100,7 +100,7 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
             to={`/properties/${property.slug}`}
             className={cn(
               'group/btn relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-full py-3.5',
-              'text-sm font-semibold uppercase tracking-[0.14em] text-white',
+              'text-sm font-semibold uppercase tracking-[0.14em] text-ink',
               'bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left',
               'transition-all duration-500 hover:bg-right hover:shadow-glow-magenta'
             )}

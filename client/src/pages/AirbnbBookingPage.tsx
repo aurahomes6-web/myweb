@@ -198,7 +198,7 @@ export default function AirbnbBookingPage() {
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.15, type: 'spring', stiffness: 260, damping: 18 }}
-              className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-purple text-white shadow-glow-cyan"
+              className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-purple text-ink shadow-glow-cyan"
             >
               <CheckCircle2 size={30} />
             </motion.div>
@@ -224,7 +224,7 @@ export default function AirbnbBookingPage() {
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan to-purple px-6 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow-glow-cyan transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow-purple"
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan to-purple px-6 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-cyan transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow-purple"
                 >
                   <Send size={14} /> Open WhatsApp
                 </a>
@@ -253,7 +253,7 @@ export default function AirbnbBookingPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               to="/"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
             >
               <Home size={15} /> Return home
             </Link>
@@ -634,7 +634,7 @@ export default function AirbnbBookingPage() {
         <button
           type="submit"
           disabled={sending}
-          className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-cyan via-purple to-cyan bg-[length:200%_100%] bg-left py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-glow-cyan transition-all duration-300 hover:bg-right hover:shadow-glow-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-bright focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-glow-cyan"
+          className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-cyan via-purple to-cyan bg-[length:200%_100%] bg-left py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-cyan transition-all duration-300 hover:bg-right hover:shadow-glow-purple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-bright focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-glow-cyan"
         >
           {sending ? (
             <>

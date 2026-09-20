@@ -72,7 +72,7 @@ export default function Navbar() {
             <Link
               to="/book"
               className={cn(
-                'group inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-semibold tracking-[0.14em] uppercase text-white',
+                'group inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-semibold tracking-[0.14em] uppercase text-ink',
                 'bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left shadow-glow-purple',
                 'transition-all duration-300 hover:bg-right hover:shadow-glow-magenta'
               )}
@@ -140,7 +140,7 @@ export default function Navbar() {
                 <Link
                   to="/book"
                   onClick={() => setOpen(false)}
-                  className="mt-8 block w-full rounded-full bg-gradient-to-r from-purple via-magenta to-cyan py-4 text-center text-sm font-semibold tracking-[0.14em] uppercase text-white shadow-glow-purple"
+                  className="mt-8 block w-full rounded-full bg-gradient-to-r from-purple via-magenta to-cyan py-4 text-center text-sm font-semibold tracking-[0.14em] uppercase text-ink shadow-glow-purple"
                 >
                   Book Your Stay
                 </Link>

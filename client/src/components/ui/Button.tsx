@@ -26,7 +26,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           sizes[size],
           {
             primary: [
-              'bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left text-white',
+              'bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left text-ink',
               'shadow-glow-purple',
               'hover:bg-right hover:shadow-glow-magenta hover:-translate-y-0.5',
               'active:translate-y-0 active:scale-[0.98]',

@@ -36,7 +36,7 @@ export default function CTASection() {
           <div className="mt-11 flex flex-col items-center justify-center gap-3.5 sm:flex-row">
             <Link
               to="/book"
-              className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-9 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta sm:w-auto"
+              className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-9 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta sm:w-auto"
             >
               Book Your Stay
               <ArrowRight

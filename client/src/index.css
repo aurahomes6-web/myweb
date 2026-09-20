@@ -1,26 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces — deep espresso → chocolate → coffee */
-  --color-surface: #14100b;
-  --color-surface-50: #1a140d;
-  --color-surface-100: #221a12;
-  --color-surface-200: #2e2418;
-  --color-surface-300: #403326;
-  --color-surface-400: #554430;
+  /* Surfaces — deep forest → soft sage (dark luxury hospitality) */
+  --color-surface: #17352d;
+  --color-surface-50: #1b3b30;
+  --color-surface-100: #21453a;
+  --color-surface-200: #2c5449;
+  --color-surface-300: #3a6b5b;
+  --color-surface-400: #4e8370;
 
-  /* Accents — warm bronze / amber / copper palette */
-  --color-purple: #a8783f;
-  --color-purple-bright: #d2a466;
-  --color-cyan: #c18a34;
-  --color-cyan-bright: #e0b265;
-  --color-magenta: #a9553a;
-  --color-magenta-bright: #ce7d56;
+  /* Accents — champagne gold (primary) / soft sage (secondary) / muted champagne */
+  --color-purple: #d8be8a;
+  --color-purple-bright: #e8d6a6;
+  --color-cyan: #829b87;
+  --color-cyan-bright: #a5b8a6;
+  --color-magenta: #c2a56c;
+  --color-magenta-bright: #d8be8a;
 
-  /* Text — ivory / beige / muted warm brown */
-  --color-text-primary: #f5efe3;
-  --color-text-secondary: #cbb9a1;
-  --color-text-muted: #8d7c67;
+  /* Text — warm ivory / light sage / soft sage */
+  --color-text-primary: #f7f4ec;
+  --color-text-secondary: #a9bcae;
+  --color-text-muted: #829b87;
+
+  /* Ink — near black for readable labels on light accents */
+  --color-ink: #171b19;
 
   /* Typography */
   --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
@@ -79,7 +82,7 @@
 
   ::selection {
     background-color: color-mix(in srgb, var(--color-purple) 45%, transparent);
-    color: #fff;
+    color: #171b19;
   }
 
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {
@@ -182,7 +185,7 @@
 
   .select-glass option:checked {
     background: linear-gradient(100deg, var(--color-purple), var(--color-cyan));
-    color: #fff;
+    color: #171b19;
   }
 
   .select-glass option:disabled {

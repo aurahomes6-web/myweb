@@ -114,7 +114,7 @@ function WhatsAppStep({
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-7 py-3.5 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-7 py-3.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
             >
               <Send size={14} /> Open WhatsApp
             </a>
@@ -199,7 +199,7 @@ export default function ConfirmationPage() {
           </p>
           <Link
             to="/properties"
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan py-3.5 px-7 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-glow-purple transition-all duration-300 hover:shadow-glow-magenta"
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan py-3.5 px-7 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:shadow-glow-magenta"
           >
             Browse homes <ArrowRight size={14} />
           </Link>
@@ -219,7 +219,7 @@ export default function ConfirmationPage() {
               initial={reduced ? undefined : { scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.15, type: 'spring', stiffness: 260, damping: 18 }}
-              className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple to-cyan text-white shadow-glow-purple"
+              className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple to-cyan text-ink shadow-glow-purple"
             >
               <CheckCircle2 size={30} />
             </motion.div>
@@ -325,7 +325,7 @@ export default function ConfirmationPage() {
             onClick={() => setTicketOpen((open) => !open)}
             aria-expanded={ticketOpen}
             aria-controls="booking-ticket"
-            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
+            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
           >
             <QrCode size={16} />
             {ticketOpen ? 'Hide booking ticket' : 'View booking ticket'}

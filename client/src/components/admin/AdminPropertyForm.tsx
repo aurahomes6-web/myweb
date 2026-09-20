@@ -13,9 +13,9 @@ interface AdminPropertyFormProps {
 
 const ACCENTS = ['purple', 'cyan', 'magenta'] as const
 const ACCENT_LABELS: Record<(typeof ACCENTS)[number], string> = {
-  purple: 'Bronze',
-  cyan: 'Amber',
-  magenta: 'Copper',
+  purple: 'Champagne',
+  cyan: 'Sage',
+  magenta: 'Gold',
 }
 const VISUALS = ['moon', 'dawn', 'evening'] as const
 

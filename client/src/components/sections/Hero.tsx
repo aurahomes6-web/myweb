@@ -80,7 +80,7 @@ export default function Hero() {
             >
               <Link
                 to="/properties"
-                className="group inline-flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
+                className="group inline-flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
               >
                 Explore Homes
                 <ArrowRight
@@ -165,7 +165,7 @@ export default function Hero() {
               transition={{ delay: 1.1, duration: 0.6, ease: EASE }}
               className="glass absolute -bottom-5 -left-3 flex items-center gap-3 rounded-2xl px-5 py-3.5 shadow-soft sm:-left-8"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple to-cyan text-xs font-bold text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple to-cyan text-xs font-bold text-ink">
                 3
               </span>
               <div>

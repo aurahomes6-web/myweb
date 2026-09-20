@@ -113,7 +113,7 @@ export default function DateRangePicker({
           !isPast && !isRangeEdge && !isCheckIn && !isCheckOut && 'text-text-secondary hover:bg-surface-200/70',
           isBlocked && isPast && 'text-text-muted/25',
           (isCheckIn || isCheckOut) &&
-            'bg-gradient-to-br from-purple to-cyan font-semibold text-white shadow-glow-purple',
+            'bg-gradient-to-br from-purple to-cyan font-semibold text-ink shadow-glow-purple',
           isRangeEdge && 'bg-surface-200/60 text-text-secondary'
         )}
       >

@@ -20,7 +20,7 @@ function AppShell() {
     <>
       <a
         href="#main-content"
-        className="sr-only z-[200] rounded-full bg-purple px-5 py-2.5 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        className="sr-only z-[200] rounded-full bg-purple px-5 py-2.5 text-sm font-semibold text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
       >
         Skip to content
       </a>
