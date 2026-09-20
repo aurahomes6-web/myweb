@@ -56,7 +56,7 @@ export default function FeatureSection() {
                   DIFFERENCE
                 </>
               }
-              description="Not just a stay — an experience designed around you. Three principles guide everything we build."
+              description="Your private corner above the city. Aura Homes is a collection of thoughtfully designed rooftop suites created around comfort, privacy and everyday luxury. With cozy interiors and terrace spaces, each suite offers a simple escape where you can unwind, connect and enjoy your own pace."
             />
           </div>
 

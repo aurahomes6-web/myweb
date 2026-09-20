@@ -41,7 +41,7 @@ export default function Hero() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-bright" />
               </span>
               <span className="text-[11px] font-medium uppercase tracking-[0.34em] text-text-secondary">
-                Luxury Penthouse Stays
+                Rooftop Cozy Terrace Suites
               </span>
             </motion.div>
 
@@ -71,9 +71,7 @@ export default function Hero() {
               {...fade(0.7)}
               className="mt-8 max-w-lg text-base leading-relaxed text-text-secondary sm:text-lg"
             >
-              Premium penthouse stays designed for those who appreciate the difference.
-              Thoughtfully curated spaces where modern comfort meets quiet luxury —
-              private, cinematic, unmistakably yours.
+              Three private rooftop suites. One shared feeling of comfort.
             </motion.p>
 
             <motion.div
@@ -126,14 +124,14 @@ export default function Hero() {
             >
               <div className="flex items-center gap-2.5">
                 <Sparkles size={14} className="text-purple-bright" />
-                <span>3 premium homes</span>
+                <span>3 rooftop suites</span>
               </div>
               <div className="h-3 w-px bg-surface-300/60" />
               <div className="flex items-center gap-2.5">
                 <span className="text-base tracking-wide">
                   <span className="font-display text-lg font-semibold text-gradient">01—03</span>
                 </span>
-                <span>private penthouses</span>
+                <span>private terrace suites</span>
               </div>
             </motion.div>
           </div>
@@ -157,7 +155,7 @@ export default function Hero() {
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface/70 via-transparent to-transparent" />
 
               <div className="absolute left-5 top-5 rounded-full border border-white/10 bg-surface-50/80 px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-text-secondary backdrop-blur-md">
-                Penthouse Residence
+                Rooftop Terrace Suite
               </div>
             </div>
 

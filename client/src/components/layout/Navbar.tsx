@@ -49,12 +49,11 @@ export default function Navbar() {
           )}
         >
           <Link to="/" className="select-none" aria-label="AURA HOMES — home">
-            <span className="font-display text-[15px] font-bold tracking-[0.3em] text-text-primary">
-              AURA
-            </span>
-            <span className="ml-1.5 align-middle font-display text-[10px] font-medium tracking-[0.42em] text-text-muted">
-              HOMES
-            </span>
+            <img
+              src="/logo.jpeg"
+              alt="AURA HOMES"
+              className="h-9 w-9 shrink-0 object-contain"
+            />
           </Link>
 
           <div className="hidden items-center gap-9 lg:flex">

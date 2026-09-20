@@ -29,7 +29,7 @@ export default function CTASection() {
           </h2>
 
           <p className="mx-auto mt-7 max-w-xl text-base leading-relaxed text-text-secondary sm:text-lg">
-            Select your dates. Reserve at your pace. Three premium penthouse stays,
+            Select your dates. Reserve at your pace. Three private rooftop suites,
             waiting for the moment you arrive.
           </p>
 
@@ -54,7 +54,7 @@ export default function CTASection() {
           </div>
 
           <p className="mt-10 text-xs tracking-[0.2em] uppercase text-text-muted">
-            Three penthouses · Premium stays · Thoughtfully designed
+            Three rooftop suites · Premium stays · Thoughtfully designed
           </p>
         </motion.div>
       </div>

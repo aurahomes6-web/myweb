@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { Building2, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { BookingsTab } from '@/components/admin/BookingsTab'
 import { AirbnbTab } from '@/components/admin/AirbnbTab'
@@ -34,8 +34,8 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
       <header className="sticky top-0 z-30 border-b border-surface-300/40 bg-surface/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple to-cyan">
-              <Building2 size={17} className="text-white" />
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
+              <img src="/logo.jpeg" alt="AURA HOMES" className="h-9 w-9 object-cover" />
             </div>
             <div>
               <p className="font-display text-sm font-bold leading-none tracking-tight text-text-primary">AURA HOMES</p>

@@ -17,7 +17,7 @@ export default function PropertiesSection() {
               OUR <span className="text-gradient">HOMES</span>
             </>
           }
-          description="Three spaces. One AURA."
+          description="Three suites. One Aura."
         />
 
         <PropertyGrid items={items} />

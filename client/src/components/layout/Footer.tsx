@@ -31,9 +31,11 @@ export default function Footer() {
           className="grid grid-cols-2 gap-10 md:grid-cols-4"
         >
           <div className="col-span-2 md:col-span-1">
-            <p className="font-display text-lg font-bold tracking-[0.3em] text-text-primary">
-              AURA <span className="text-[10px] font-medium tracking-[0.42em] text-text-muted">HOMES</span>
-            </p>
+            <img
+              src="/logo.jpeg"
+              alt="AURA HOMES"
+              className="h-10 w-10 object-contain"
+            />
             <p className="mt-4 max-w-[15rem] text-sm leading-relaxed text-text-muted">
               Premium stays, thoughtfully designed. Every space curated for comfort, style,
               and an experience that stays with you.
