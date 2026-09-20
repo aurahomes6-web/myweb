@@ -1,11 +1,3 @@
-// AURA HOMES — Prisma schema (Supabase-hosted PostgreSQL)
-//
-// Connection strategy:
-//   DATABASE_URL = Supabase transaction-mode pooler (used by the Prisma Client)
-//   DIRECT_URL    = Supabase session-mode pooler  (used by Prisma Migrate)
-//
-// Both values live in server/.env and are never committed.
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -13,6 +5,113 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Property {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  shortLabel         String
+  description        String
+  shortDescription   String
+  capacity           Int
+  bedrooms           Int
+  bathrooms          Int
+  sqft               Int
+  amenities          String[]
+  accent             String
+  visual             String
+  location           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  beds               Int?
+  airbnbReservations AirbnbReservation[]
+  blockedDates       BlockedDate[]
+  bookings           Booking[]
+
+  @@index([slug])
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  code         String        @unique
+  propertyId   String
+  checkIn      DateTime      @db.Date
+  checkOut     DateTime      @db.Date
+  notes        String?
+  status       BookingStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  guestCount   Int
+  primaryPhone String
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guestRecords Guest[]
+
+  @@index([propertyId, checkIn, checkOut])
+  @@index([status])
+}
+
+model Guest {
+  id            String      @id @default(cuid())
+  bookingId     String
+  fullName      String
+  aadhaarNumber String
+  gender        GuestGender
+  age           Int
+  phone         String?
+  isPrimary     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model BlockedDate {
+  id                  String             @id @default(cuid())
+  propertyId          String
+  date                DateTime           @db.Date
+  reason              String?
+  airbnbReservationId String?
+  airbnbReservation   AirbnbReservation? @relation(fields: [airbnbReservationId], references: [id], onDelete: Cascade)
+  property            Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, date])
+  @@index([propertyId, date])
+  @@index([airbnbReservationId])
+}
+
+model AirbnbReservation {
+  id                String        @id @default(cuid())
+  propertyId        String?
+  reservationNumber String
+  guestName         String
+  primaryPhone      String
+  checkIn           DateTime      @db.Date
+  checkOut          DateTime      @db.Date
+  guestCount        Int
+  status            AirbnbStatus  @default(ACTIVE)
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  guestRecords      AirbnbGuest[]
+  property          Property?     @relation(fields: [propertyId], references: [id])
+  blockedDates      BlockedDate[]
+
+  @@index([propertyId, checkIn, checkOut])
+  @@index([status])
+}
+
+model AirbnbGuest {
+  id            String            @id @default(cuid())
+  reservationId String
+  fullName      String
+  aadhaarNumber String
+  gender        GuestGender
+  age           Int
+  createdAt     DateTime          @default(now())
+  reservation   AirbnbReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
 }
 
 enum BookingStatus {
@@ -31,111 +130,4 @@ enum GuestGender {
 enum AirbnbStatus {
   ACTIVE
   CANCELLED
-}
-
-model Property {
-  id               String        @id @default(cuid())
-  slug             String        @unique
-  name             String
-  shortLabel       String
-  description      String
-  shortDescription String
-  capacity         Int
-  bedrooms         Int
-  beds             Int?
-  bathrooms        Int
-  sqft             Int
-  amenities        String[]
-  accent           String
-  visual           String
-  location         String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  bookings         Booking[]
-  blockedDates     BlockedDate[]
-  airbnbReservations AirbnbReservation[]
-
-  @@index([slug])
-}
-
-model Booking {
-  id          String        @id @default(cuid())
-  code        String        @unique
-  propertyId  String
-  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  checkIn     DateTime      @db.Date
-  checkOut    DateTime      @db.Date
-  guestCount  Int
-  primaryPhone String
-  notes       String?
-  status      BookingStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  guestRecords Guest[]
-
-  @@index([propertyId, checkIn, checkOut])
-  @@index([status])
-}
-
-model Guest {
-  id            String      @id @default(cuid())
-  bookingId     String
-  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  fullName      String
-  aadhaarNumber String
-  gender        GuestGender
-  age           Int
-  phone         String?
-  isPrimary     Boolean     @default(false)
-  createdAt     DateTime    @default(now())
-
-  @@index([bookingId])
-}
-
-model BlockedDate {
-  id                  String             @id @default(cuid())
-  propertyId          String
-  property            Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  date                DateTime           @db.Date
-  reason              String?
-  airbnbReservationId String?
-  airbnbReservation   AirbnbReservation? @relation(fields: [airbnbReservationId], references: [id], onDelete: Cascade)
-
-  @@unique([propertyId, date])
-  @@index([propertyId, date])
-  @@index([airbnbReservationId])
-}
-
-model AirbnbReservation {
-  id                String        @id @default(cuid())
-  propertyId        String?
-  property          Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  reservationNumber String
-  guestName         String
-  primaryPhone      String
-  checkIn           DateTime      @db.Date
-  checkOut          DateTime      @db.Date
-  guestCount        Int
-  status            AirbnbStatus  @default(ACTIVE)
-  notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  guestRecords      AirbnbGuest[]
-  blockedDates      BlockedDate[]
-
-  @@index([propertyId, checkIn, checkOut])
-  @@index([status])
-}
-
-model AirbnbGuest {
-  id            String           @id @default(cuid())
-  reservationId String
-  reservation   AirbnbReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  fullName      String
-  aadhaarNumber String
-  gender        GuestGender
-  age           Int
-  createdAt     DateTime         @default(now())
-
-  @@index([reservationId])
 }
