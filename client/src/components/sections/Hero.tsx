@@ -90,7 +90,7 @@ export default function Hero() {
               </Link>
               <Link
                 to="/book"
-                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-surface-300/80 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-text-primary backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-purple/45 hover:shadow-glow-purple"
+                className="inline-flex items-center justify-center gap-2.5 rounded-full bg-forest px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-text-primary transition-all duration-300 hover:-translate-y-0.5 hover:bg-forest/90 hover:shadow-glow-cyan"
               >
                 <Calendar size={16} className="text-cyan-bright" />
                 Check Availability

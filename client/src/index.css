@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces — deep forest green base + warm earthy brown elevated panels
-     (green + brown hybrid: canvas stays forest, panels warm cocoa→walnut→taupe) */
-  --color-surface: #17352d;
-  --color-surface-50: #3a2f23;
-  --color-surface-100: #4a3a2b;
-  --color-surface-200: #5a4633;
-  --color-surface-300: #6e5640;
+  /* Surfaces — warm dark brown dominant + earthy brown ramp
+     (brown-first, green-second: canvas + panels warm chocolate → walnut → taupe) */
+  --color-surface: #4a3428;
+  --color-surface-50: #513c2d;
+  --color-surface-100: #5c4431;
+  --color-surface-200: #6b4a35;
+  --color-surface-300: #7a5a42;
   --color-surface-400: #8a6a52;
 
-  /* Accents — champagne gold (primary) / soft sage (secondary) / warm bronze */
+  /* Accents — champagne gold (primary) / soft sage (secondary) / warm bronze /
+     deep forest green (supporting accent) */
   --color-purple: #d8be8a;
   --color-purple-bright: #e8d6a6;
   --color-cyan: #829b87;
   --color-cyan-bright: #a5b8a6;
   --color-magenta: #a8783f;
   --color-magenta-bright: #c89a60;
+  --color-forest: #17352d;
 
   /* Text — warm ivory / warm parchment / warm taupe */
   --color-text-primary: #f7f4ec;
