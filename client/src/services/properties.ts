@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { API_BASE_URL } from '@/config/api'
+import { API_BASE_URL, resolveImageUrl } from '@/config/api'
 import { imageAssets } from '@/config/images'
 import { properties as fallbackProperties } from '@/data/properties'
 import type {
@@ -65,8 +65,11 @@ const GALLERY_KIND_ORDER: Record<string, number> = {
 
 /**
  * Convert DB-backed photos into the gallery shape. When a property has any
- * uploaded images they take over the gallery entirely (old static artwork is
+ * uploadable images they take over the gallery entirely (old static artwork is
  * only a fallback for properties with no uploads), preserving slot order.
+ * Image URLs are resolved through the API base config first; unresolvable ones
+ * (e.g. the dev-only `memory://` scheme) are dropped so the static artwork can
+ * step in instead of a broken <img>.
  */
 function buildDbGallery(images: PropertyApiImage[], accent: AccentKind): PropertyImage[] {
   return [...images]
@@ -76,10 +79,11 @@ function buildDbGallery(images: PropertyApiImage[], accent: AccentKind): Propert
     .map((img) => ({
       id: img.id,
       label: img.alt || 'AURA HOMES property photo',
-      image: img.url,
+      image: resolveImageUrl(img.url),
       accent,
       variant: 'moon' as VisualKind,
     }))
+    .filter((slide): slide is PropertyImage => slide.image !== null)
 }
 
 function toProperty(item: PublicPropertyApiItem): Property {
@@ -88,6 +92,8 @@ function toProperty(item: PublicPropertyApiItem): Property {
   const visual: VisualKind = isVisual(item.visual) ? item.visual : 'moon'
   const dbImages: PropertyApiImage[] = item.images ?? []
   const mainDb = dbImages.find((img) => img.kind === 'MAIN')
+  const mainImage = mainDb ? resolveImageUrl(mainDb.url) : null
+  const dbGallery = dbImages.length > 0 ? buildDbGallery(dbImages, accent) : []
   return {
     id: item.id,
     slug: item.slug as PropertySlug,
@@ -97,8 +103,8 @@ function toProperty(item: PublicPropertyApiItem): Property {
     shortDescription: item.shortDescription,
     pricePerNightPaise: item.pricePerNightPaise,
     images: item.images,
-    image: mainDb?.url ?? assets?.mainImage ?? null,
-    gallery: dbImages.length > 0 ? buildDbGallery(dbImages, accent) : (assets?.gallery ?? []),
+    image: mainImage ?? assets?.mainImage ?? null,
+    gallery: dbGallery.length > 0 ? dbGallery : (assets?.gallery ?? []),
     accent,
     visual,
     capacity: item.capacity,

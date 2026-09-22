@@ -429,6 +429,26 @@ test('consumeCouponInTransaction throws for missing/deactivated/expired coupons'
 
 // ── storage ────────────────────────────────────────────────────────────────
 
+/**
+ * Persistent-style storage stub: returns browser-loadable https URLs and tracks
+ * keys for delete assertions. Mirrors what VercelBlobStorage returns once
+ * BLOB_READ_WRITE_TOKEN is configured, so image-service tests can pass the
+ * persist-time browser-loadable guard.
+ */
+function blobStorage() {
+  const keys = new Set<string>()
+  return {
+    put: async (key: string, _buffer: Buffer, _contentType: string) => {
+      keys.add(key)
+      return { url: `https://blob.test/${key}`, key }
+    },
+    delete: async (key: string) => {
+      keys.delete(key)
+    },
+    has: (key: string) => keys.has(key),
+  }
+}
+
 test('MemoryStorage stores by key and deletes', async () => {
   const storage = new MemoryStorage()
   const stored = await storage.put('properties/a/x', Buffer.from('img'), 'image/png')
@@ -448,7 +468,7 @@ test('getObjectStorage falls back to memory when no blob token is configured', (
 test('uploadPropertyImage uploads to a single slot replacing the old image', async () => {
   const db = new FakeDb()
   seedProperty(db)
-  const storage = new MemoryStorage()
+  const storage = blobStorage()
   for (let i = 0; i < 2; i++) {
     const img = await uploadPropertyImage(
       asClient(db),
@@ -460,6 +480,7 @@ test('uploadPropertyImage uploads to a single slot replacing the old image', asy
     )
     assert.equal(img.sort, 0)
     assert.equal(img.kind, 'MAIN')
+    assert.match(img.url, /^https:\/\//)
   }
   assert.equal(db.propertyImages.length, 1, 'main slot holds exactly one current image')
 })
@@ -467,7 +488,7 @@ test('uploadPropertyImage uploads to a single slot replacing the old image', asy
 test('uploadPropertyImage appends to the extra slot with ascending sort', async () => {
   const db = new FakeDb()
   seedProperty(db)
-  const storage = new MemoryStorage()
+  const storage = blobStorage()
   const a = await uploadPropertyImage(asClient(db), storage, 'prop-1', 'extra', Buffer.from('a'), 'image/jpeg')
   const b = await uploadPropertyImage(asClient(db), storage, 'prop-1', 'extra', Buffer.from('b'), 'image/jpeg')
   assert.equal(a.sort, 1)
@@ -478,7 +499,7 @@ test('uploadPropertyImage appends to the extra slot with ascending sort', async 
 test('uploadPropertyImage rejects empty buffers and unknown properties', async () => {
   const db = new FakeDb()
   seedProperty(db)
-  const storage = new MemoryStorage()
+  const storage = blobStorage()
   await assert.rejects(
     uploadPropertyImage(asClient(db), storage, 'prop-1', 'main', Buffer.alloc(0), 'image/png'),
     BadRequestError
@@ -489,10 +510,21 @@ test('uploadPropertyImage rejects empty buffers and unknown properties', async (
   )
 })
 
-test('deletePropertyImage removes the row and only for the owning property', async () => {
+test('uploadPropertyImage refuses to persist non-browser-loadable storage URLs', async () => {
   const db = new FakeDb()
   seedProperty(db)
   const storage = new MemoryStorage()
+  await assert.rejects(
+    uploadPropertyImage(asClient(db), storage, 'prop-1', 'main', Buffer.from('x'), 'image/png'),
+    (err: unknown) => err instanceof BadRequestError && /BLOB_READ_WRITE_TOKEN/.test(err.message)
+  )
+  assert.equal(db.propertyImages.length, 0, 'no memory:// URL is ever stored in the DB')
+})
+
+test('deletePropertyImage removes the row and only for the owning property', async () => {
+  const db = new FakeDb()
+  seedProperty(db)
+  const storage = blobStorage()
   const img = await uploadPropertyImage(asClient(db), storage, 'prop-1', 'main', Buffer.from('x'), 'image/png')
   const storageKey = db.propertyImages[0].storageKey as string
   assert.ok(storage.has(storageKey))

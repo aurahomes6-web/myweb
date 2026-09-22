@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { PrismaClient } from '../generated/prisma/client.js'
 import { PropertyImageKind } from '../generated/prisma/enums.js'
-import type { ObjectStorage } from '../storage/storage.js'
+import { isBrowserLoadableUrl, type ObjectStorage } from '../storage/storage.js'
 import { NotFoundError, BadRequestError } from './adminService.js'
 
 /**
@@ -111,6 +111,17 @@ export async function uploadPropertyImage(
 
   let stored: { url: string; key: string }
   stored = await storage.put(blobKey(propertyId, slot), buffer, contentType)
+
+  // Never persist a URL a browser cannot load (e.g. the dev-only `memory://`
+  // scheme). If persistent object storage (Vercel Blob) is not configured,
+  // fail the upload loudly instead of poisoning PropertyImage.url with a
+  // broken image that the customer pages can never render.
+  if (!isBrowserLoadableUrl(stored.url)) {
+    throw new BadRequestError(
+      'Image storage is not configured for browser loading. ' +
+        'Set BLOB_READ_WRITE_TOKEN (Vercel Blob store) before uploading property photos.'
+    )
+  }
 
   const created = await client.propertyImage.create({
     data: { propertyId, kind, sort, url: stored.url, storageKey: stored.key, alt },
