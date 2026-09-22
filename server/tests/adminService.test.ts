@@ -76,6 +76,13 @@ class FakeDb {
   airbnbs: Array<Record<string, unknown>> = []
   airbnbGuests: Array<Record<string, unknown>> = []
   blockedDates: Array<Record<string, unknown>> = []
+  couponUsage: any = {
+    deleteMany: async ({ where }: any = {}) => ({ count: 0 }),
+    create: async ({ data }: any = {}) => ({ id: 'usage-1', ...data }),
+  }
+  propertyImage: any = {
+    count: async () => 0,
+  }
 
   $transaction = (async (fn: (tx: never) => unknown) =>
     (fn as (tx: FakeDb) => Promise<unknown>)(this)) as unknown as PrismaClient['$transaction']
@@ -377,6 +384,7 @@ function seedProperty(fake: FakeDb, overrides: Record<string, unknown> = {}) {
     accent: '#8B5CF6',
     visual: 'purple',
     location: 'Whitefield',
+    pricePerNightPaise: 280000,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -866,6 +874,7 @@ test('updateProperty persists editable fields including facilities', async () =>
     accent: '#06B6D4',
     visual: 'cyan',
     location: 'Koramangala',
+    pricePerNightPaise: 280000,
   })
 
   assert.equal(updated.name, 'Aura Sky Penthouse')

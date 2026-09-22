@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -10,16 +11,19 @@ import {
   Bath,
   Lock,
   Loader2,
+  Ticket,
 } from 'lucide-react'
 import { useProperties, usePropertyBySlug } from '@/services/properties'
 import { accentPalettes } from '@/config/accents'
 import PropertyVisual from '@/components/visuals/PropertyVisual'
 import GuestDetailsForm from '@/components/booking/GuestDetailsForm'
+import { CouponBox } from '@/components/booking/CouponBox'
 import NotFoundContent from '@/components/ui/NotFoundContent'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { cn } from '@/lib/cn'
+import { formatINR } from '@/lib/money'
 import { formatShortDate, isValidRange, nightsBetween, today } from '@/lib/date'
-import type { BookingResponse, PropertySlug } from '@/types'
+import type { AppliedCoupon, BookingResponse, PropertySlug } from '@/types'
 
 function PropertyPicker() {
   const reduced = useReducedMotion()
@@ -128,6 +132,18 @@ export default function BookingPage() {
   const rangeValid = isValidRange(checkIn, checkOut, today())
   const nights = rangeValid ? nightsBetween(checkIn, checkOut) : 0
 
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null)
+
+  // A coupon is only honored for the exact dates/property it was validated
+  // against. Whenever any of those change, drop it so the guest never gets a
+  // stale preview or an unchecked code in the booking payload.
+  useEffect(() => {
+    setCoupon(null)
+  }, [propertySlug, checkIn, checkOut])
+
+  const originalTotal = nights * property.pricePerNightPaise
+  const finalTotal = Math.max(0, originalTotal - (coupon?.discountPaise ?? 0))
+
   return (
     <div className="mx-auto max-w-7xl px-5 pb-28 pt-28 sm:px-8 lg:pt-32">
       <Link
@@ -173,6 +189,7 @@ export default function BookingPage() {
               checkIn={checkIn}
               checkOut={checkOut}
               guestCount={guests}
+              couponCode={coupon?.code}
               onSuccess={(booking: BookingResponse, whatsAppOpened?: boolean) => {
                 navigate('/confirmation', {
                   state: { booking, autoWhatsApp: true, whatsAppOpened: whatsAppOpened === true },
@@ -239,6 +256,41 @@ export default function BookingPage() {
                     {nights} night{nights === 1 ? '' : 's'}
                   </span>
                 </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Nightly rate</span>
+                  <span className="font-semibold text-text-primary">{formatINR(property.pricePerNightPaise)}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Stay total</span>
+                  <span className="font-semibold text-text-primary">{formatINR(originalTotal)}</span>
+                </div>
+
+                {coupon && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="inline-flex items-center gap-1.5 text-text-muted">
+                      <Ticket size={13} className="text-cyan-bright" /> Coupon {coupon.code}
+                    </span>
+                    <span className="font-semibold text-cyan-bright">− {formatINR(coupon.discountPaise)}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between border-t border-surface-300/30 pt-3">
+                  <span className="text-sm font-semibold text-text-secondary">Total due</span>
+                  <span className="font-display text-xl font-bold tracking-tight text-text-primary">
+                    {formatINR(finalTotal)}
+                  </span>
+                </div>
+
+                {/* Coupon entry — resets whenever the stay changes */}
+                <CouponBox
+                  key={`${propertySlug}-${checkIn}-${checkOut}`}
+                  propertyId={property.id}
+                  checkIn={checkIn}
+                  checkOut={checkOut}
+                  onCouponChange={setCoupon}
+                />
               </div>
             ) : (
               <div className="flex items-start gap-3 rounded-2xl border border-surface-300/40 bg-surface-100/40 p-4 text-sm text-text-muted">

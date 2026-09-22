@@ -8,19 +8,26 @@ import {
   clearAllBookingDataHandler,
   clearBookingsHandler,
   createAirbnbHandler,
+  createCouponHandler,
   deleteAirbnbHandler,
+  deleteCouponHandler,
   deletePropertyHandler,
+  deletePropertyImageHandler,
   getAirbnbHandler,
   getBookingHandler,
   listAirbnbHandler,
   listBookingsHandler,
+  listCouponsHandler,
   listPropertiesHandler,
   login,
   logout,
   me,
+  setCouponActiveHandler,
   updateAirbnbHandler,
   updateBookingHandler,
   updatePropertyHandler,
+  uploadPropertyImageHandler,
+  uploadImageMiddleware,
 } from '../controllers/adminController.js'
 
 const config = adminConfig(process.env)
@@ -49,6 +56,26 @@ router.delete('/airbnb/:id', requireCsrfHeader, auth, deleteAirbnbHandler)
 router.get('/properties', auth, listPropertiesHandler)
 router.patch('/properties/:id', requireCsrfHeader, auth, updatePropertyHandler)
 router.delete('/properties/:id', requireCsrfHeader, auth, deletePropertyHandler)
+
+// Phase 5: photo upload/delete + promo coupons (auth + CSRF everywhere).
+router.post(
+  '/properties/:id/images',
+  requireCsrfHeader,
+  auth,
+  uploadImageMiddleware,
+  uploadPropertyImageHandler
+)
+router.delete(
+  '/properties/:id/images/:imageId',
+  requireCsrfHeader,
+  auth,
+  deletePropertyImageHandler
+)
+
+router.get('/coupons', auth, listCouponsHandler)
+router.post('/coupons', requireCsrfHeader, auth, createCouponHandler)
+router.patch('/coupons/:id', requireCsrfHeader, auth, setCouponActiveHandler)
+router.delete('/coupons/:id', requireCsrfHeader, auth, deleteCouponHandler)
 
 // Destructive maintenance. Auth + CSRF + an explicit confirmation phrase are
 // all required before any data is removed. Properties are always preserved.

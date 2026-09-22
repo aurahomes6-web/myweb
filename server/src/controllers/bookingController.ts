@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
 import { BookingStatus, GuestGender } from '../generated/prisma/enums.js'
-import type { Booking } from '../generated/prisma/client.js'
+import type { Booking, Property } from '../generated/prisma/client.js'
 import { prisma } from '../lib/db.js'
 import { toDateKey, toUtcDate } from '../lib/dateUtils.js'
 import {
@@ -17,6 +17,8 @@ import {
   sendBookingNotification,
   type BookingNotificationPayload,
 } from '../services/notificationService.js'
+import { consumeCouponInTransaction, CouponInvalidError } from '../services/couponService.js'
+import { computeStayTotal, CURRENCY, type PricingSnapshot } from '../services/pricingService.js'
 
 const MAX_CODE_ATTEMPTS = 5
 const CONFLICT_MESSAGE = 'The selected property is no longer available for these dates.'
@@ -50,6 +52,16 @@ export interface GuestRecordSelected {
 
 interface CreatedBooking extends Booking {
   guestRecords: GuestRecordSelected[]
+  pricing: PricingSnapshot
+}
+
+export interface BookingPricingResponse extends PricingSnapshot {
+  currency: 'INR'
+  couponCode?: string
+}
+
+function nightsBetweenDates(checkIn: Date, checkOut: Date): number {
+  return Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 function isTransientBookingFailure(err: unknown): boolean {
@@ -61,14 +73,14 @@ function isTransientBookingFailure(err: unknown): boolean {
   return false
 }
 
-async function createBookingRecord(input: CreateBookingInput, propertyId: string) {
+async function createBookingRecord(input: CreateBookingInput, property: Property) {
   for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
     try {
       return await prisma.$transaction(
         async (tx) => {
           const clash = await tx.booking.findFirst({
             where: {
-              propertyId,
+              propertyId: property.id,
               status: { not: BookingStatus.CANCELLED },
               checkIn: { lt: toUtcDate(input.checkOut) },
               checkOut: { gt: toUtcDate(input.checkIn) },
@@ -79,23 +91,45 @@ async function createBookingRecord(input: CreateBookingInput, propertyId: string
 
           const blocked = await tx.blockedDate.findFirst({
             where: {
-              propertyId,
+              propertyId: property.id,
               date: { gte: toUtcDate(input.checkIn), lt: toUtcDate(input.checkOut) },
             },
             select: { id: true },
           })
           if (blocked) throw new BookingConflictError()
 
-          return tx.booking.create({
+          // Server-authoritative pricing: the price always comes from the
+          // database and the coupon from the coupon table — never from the
+          // client. A failed booking rolls back any coupon usage too.
+          const nights = nightsBetweenDates(
+            toUtcDate(input.checkIn),
+            toUtcDate(input.checkOut)
+          )
+          const originalPricePaise = computeStayTotal(property.pricePerNightPaise, nights)
+          let discountPaise = 0
+          let coupon: { id: string; code: string } | null = null
+          if (input.couponCode !== undefined) {
+            const consumed = await consumeCouponInTransaction(tx, input.couponCode, originalPricePaise)
+            coupon = { id: consumed.id, code: consumed.code }
+            discountPaise = consumed.discountPaise
+          }
+          const finalPricePaise = originalPricePaise - discountPaise
+
+          const created = (await tx.booking.create({
             data: {
               code: generateBookingCode(),
-              propertyId,
+              propertyId: property.id,
               checkIn: toUtcDate(input.checkIn),
               checkOut: toUtcDate(input.checkOut),
               guestCount: input.guestCount,
               primaryPhone: input.primaryPhone,
               notes: input.notes || null,
               status: BookingStatus.CONFIRMED,
+              originalPricePaise,
+              discountPaise,
+              finalPricePaise,
+              couponId: coupon?.id ?? null,
+              couponCode: coupon?.code ?? null,
               guestRecords: {
                 create: input.guests.map((guest, index) => ({
                   fullName: guest.fullName,
@@ -121,7 +155,22 @@ async function createBookingRecord(input: CreateBookingInput, propertyId: string
                 },
               },
             },
-          })
+          })) as CreatedBooking
+
+          const pricing: PricingSnapshot = {
+            nights,
+            originalPricePaise,
+            discountPaise,
+            finalPricePaise,
+            currency: CURRENCY,
+            ...(coupon ? { couponCode: coupon.code } : {}),
+          }
+
+          if (coupon) {
+            await tx.couponUsage.create({ data: { couponId: coupon.id, bookingId: created.id } })
+          }
+
+          return { ...created, pricing }
         },
         { isolationLevel: 'Serializable', maxWait: 5000, timeout: 15000 }
       )
@@ -143,6 +192,25 @@ export function serializeGuestSafe(guest: GuestRecordSelected): SafeGuest {
   }
 }
 
+function bookingPricingSnapshot(booking: Booking): BookingPricingResponse | null {
+  if (
+    booking.originalPricePaise === null &&
+    booking.discountPaise === null &&
+    booking.finalPricePaise === null
+  ) {
+    return null
+  }
+  const snapshot: BookingPricingResponse = {
+    nights: nightsBetweenDates(booking.checkIn, booking.checkOut),
+    originalPricePaise: booking.originalPricePaise ?? 0,
+    discountPaise: booking.discountPaise ?? 0,
+    finalPricePaise: booking.finalPricePaise ?? 0,
+    currency: CURRENCY,
+  }
+  if (booking.couponCode) snapshot.couponCode = booking.couponCode
+  return snapshot
+}
+
 export function serializeBooking(booking: Booking, guests?: SafeGuest[]) {
   const safe = {
     id: booking.id,
@@ -155,6 +223,7 @@ export function serializeBooking(booking: Booking, guests?: SafeGuest[]) {
     notes: booking.notes,
     status: booking.status,
     createdAt: booking.createdAt.toISOString(),
+    pricing: bookingPricingSnapshot(booking),
   }
   return guests ? { ...safe, guests } : safe
 }
@@ -177,6 +246,16 @@ function buildNotificationPayload(
       gender: guest.gender,
       age: guest.age,
     })),
+    ...(booking.couponCode
+      ? {
+          pricing: {
+            originalPricePaise: booking.originalPricePaise ?? 0,
+            discountPaise: booking.discountPaise ?? 0,
+            finalPricePaise: booking.finalPricePaise ?? 0,
+            couponCode: booking.couponCode,
+          },
+        }
+      : {}),
   }
 }
 
@@ -208,12 +287,25 @@ export async function createBookingHandler(req: Request, res: Response) {
 
   let booking: CreatedBooking
   try {
-    booking = (await createBookingRecord(input, property.id)) as CreatedBooking
+    booking = (await createBookingRecord(input, property)) as CreatedBooking
   } catch (err) {
     if (err instanceof BookingConflictError) {
       return res
         .status(409)
         .json({ error: 'PROPERTY_UNAVAILABLE', message: CONFLICT_MESSAGE })
+    }
+    if (err instanceof CouponInvalidError) {
+      const errorByReason: Record<string, string> = {
+        NOT_FOUND: 'COUPON_NOT_FOUND',
+        DEACTIVATED: 'COUPON_DEACTIVATED',
+        EXPIRED: 'COUPON_EXPIRED',
+        USAGE_EXCEEDED: 'COUPON_USAGE_EXCEEDED',
+      }
+      return res.status(400).json({
+        error: errorByReason[err.reason] ?? 'COUPON_INVALID',
+        message: 'That coupon could not be applied.',
+        details: err.couponCode ? { couponCode: err.couponCode } : undefined,
+      })
     }
     throw err
   }

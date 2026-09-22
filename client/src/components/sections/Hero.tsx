@@ -71,7 +71,7 @@ export default function Hero() {
               {...fade(0.7)}
               className="mt-8 max-w-lg text-base leading-relaxed text-text-secondary sm:text-lg"
             >
-              Three private rooftop suites. One shared feeling of comfort.
+              Cozy rooftop terrace suites. One shared feeling of comfort.
             </motion.p>
 
             <motion.div

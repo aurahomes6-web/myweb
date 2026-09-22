@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { BedDouble, Loader2, Pencil, Ruler, Trash2, Users } from 'lucide-react'
+import { BedDouble, IndianRupee, Loader2, Pencil, Ruler, Trash2, Users } from 'lucide-react'
 import type { AdminProperty } from '@/types/admin'
 import { useAdminProperties } from '@/hooks/useAdminProperties'
 import { deleteAdminProperty } from '@/services/admin'
 import { AdminPropertyForm } from '@/components/admin/AdminPropertyForm'
 import { DetailList, ErrorBanner } from '@/components/admin/AdminFormControls'
 import { AdminApiError } from '@/services/admin'
+import { formatINR } from '@/lib/money'
 
 export function PropertiesTab() {
   const { properties, status, error } = useAdminProperties()
@@ -99,6 +100,9 @@ export function PropertiesTab() {
                 </p>
                 <p className="inline-flex items-center gap-1.5 text-text-muted">
                   <Ruler size={13} className="text-magenta-bright" /> {property.sqft} sqft
+                </p>
+                <p className="inline-flex items-center gap-1.5 text-text-muted">
+                  <IndianRupee size={13} className="text-purple-bright" /> {formatINR(property.pricePerNightPaise)} / night
                 </p>
                 <p className="inline-flex items-center gap-1.5 text-text-muted">· {property.bathrooms} bath</p>
               </div>

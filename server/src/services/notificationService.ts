@@ -2,6 +2,7 @@ import { GuestGender } from '../generated/prisma/enums.js'
 import { maskAadhaar } from '../lib/bookingValidation.js'
 import type { AirbnbDetailsInput } from '../lib/airbnbValidation.js'
 import { formatDateKey, nightsBetween } from '../lib/dateUtils.js'
+import { formatINR } from './pricingService.js'
 
 /**
  * Booking notifications.
@@ -41,6 +42,13 @@ export interface BookingNotificationPayload {
   guestCount: number
   primaryPhone: string
   guests: GuestForNotification[]
+  /** Present when a coupon was applied at booking time (Phase 5). */
+  pricing?: {
+    originalPricePaise: number
+    discountPaise: number
+    finalPricePaise: number
+    couponCode?: string
+  }
 }
 
 export type NotificationStatus =
@@ -87,6 +95,22 @@ export function buildWhatsAppMessage(
     })
     .join('\n')
 
+  const pricingLines: string[] = []
+  if (payload.pricing !== undefined) {
+    pricingLines.push(
+      ``,
+      `Pricing:`,
+      `- Original: ${formatINR(payload.pricing.originalPricePaise)}`,
+    )
+    if (payload.pricing.discountPaise > 0) {
+      pricingLines.push(`- Discount: – ${formatINR(payload.pricing.discountPaise)}`)
+    }
+    pricingLines.push(`- Total: ${formatINR(payload.pricing.finalPricePaise)}`)
+    if (payload.pricing.couponCode) {
+      pricingLines.push(`- Coupon: ${payload.pricing.couponCode}`)
+    }
+  }
+
   return [
     `AURA HOMES — NEW BOOKING`,
     ``,
@@ -96,6 +120,7 @@ export function buildWhatsAppMessage(
     `Check-out: ${payload.checkOut}`,
     `Guests: ${payload.guestCount}`,
     `Nights: ${nights}`,
+    ...pricingLines,
     ``,
     `Primary guest:`,
     `- ${primary?.fullName ?? '—'}`,

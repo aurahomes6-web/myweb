@@ -34,6 +34,19 @@ export interface Property {
   sqft: number
   amenities: string[]
   location: string | null
+  /** Nightly rate in integer paise (₹3,000 → 300000). Phase 5. */
+  pricePerNightPaise: number
+  /** DB-backed images (Phase 5). Falls back to `image`/`gallery` when empty. */
+  images: PropertyApiImage[]
+}
+
+/** A photograph referenced by the database (admin-uploaded, Phase 5). */
+export interface PropertyApiImage {
+  id: string
+  kind: string
+  sort: number
+  url: string | null
+  alt: string
 }
 
 export interface BookingFormData {
@@ -44,6 +57,8 @@ export interface BookingFormData {
   primaryPhone: string
   guests: BookingGuestPayload[]
   notes?: string
+  /** Optional referral/offer code. Sent verbatim; the server applies the discount. */
+  couponCode?: string
 }
 
 export type GuestGenderValue = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY'
@@ -74,6 +89,25 @@ export type BookingNotificationStatus =
   | 'PROVIDER_PENDING'
   | 'SENT'
   | 'FAILED'
+
+export type AvailableCouponDiscountType = 'FIXED' | 'PERCENTAGE'
+
+/** A coupon successfully validated against the public endpoint. */
+export interface ValidatedCoupon {
+  code: string
+  discountType: AvailableCouponDiscountType
+  discountValue: number
+  /** Exact discount the server computed for these dates (server-authoritative). */
+  discountPaise: number
+}
+
+/** Applied state lifted to the booking summary so totals can react. */
+export interface AppliedCoupon {
+  code: string
+  discountPaise: number
+}
+
+export type CouponValidationStatus = 'idle' | 'loading' | 'applied' | 'error'
 
 export interface BookingResponse {
   id: string

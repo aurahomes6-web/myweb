@@ -17,6 +17,7 @@ function baseProperty(): Record<string, unknown> {
     accent: '#8B5CF6',
     visual: 'purple',
     location: 'Whitefield, Bengaluru',
+    pricePerNightPaise: 250000,
   }
 }
 

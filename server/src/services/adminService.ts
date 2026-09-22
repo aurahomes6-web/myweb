@@ -6,6 +6,8 @@ import type { CreateBookingInput, BookingGuestInput } from '../lib/bookingValida
 import type { AirbnbDetailsInput, AirbnbGuestInput } from '../lib/airbnbValidation.js'
 import type { PropertyUpdateInput } from '../lib/propertyValidation.js'
 import { collectConflicts, anyConflict, conflictMessage } from './overlapService.js'
+import { consumeCouponInTransaction } from './couponService.js'
+import { computeStayTotal } from './pricingService.js'
 
 /**
  * Admin-only booking and Airbnb operations.
@@ -85,6 +87,14 @@ export interface AdminAirbnbDto {
   guests: AdminGuestDto[]
 }
 
+export interface AdminPropertyImageDto {
+  id: string
+  kind: string
+  sort: number
+  url: string
+  alt: string
+}
+
 export interface AdminPropertyDto {
   id: string
   slug: string
@@ -101,6 +111,9 @@ export interface AdminPropertyDto {
   accent: string
   visual: string
   location: string | null
+  /** Nightly rate (excluding any promo offer), stored as integer paise. */
+  pricePerNightPaise: number
+  images: AdminPropertyImageDto[]
 }
 
 // ── row shapes (match each query's select/include) ─────────────────────────
@@ -191,7 +204,11 @@ const propertyFieldSelect = {
   id: true, slug: true, name: true, shortLabel: true, description: true,
   shortDescription: true, capacity: true, bedrooms: true, beds: true,
   bathrooms: true, sqft: true, amenities: true, accent: true, visual: true,
-  location: true,
+  location: true, pricePerNightPaise: true,
+  images: {
+    orderBy: { sort: 'asc' as const },
+    select: { id: true, kind: true, sort: true, url: true, alt: true },
+  },
 } as const
 
 // ── BOOKINGS ───────────────────────────────────────────────────────────────
@@ -261,7 +278,7 @@ export async function updateBooking(
 
   const property = await client.property.findFirst({
     where: { OR: [{ id: input.propertyId }, { slug: input.propertyId }] },
-    select: { id: true, capacity: true },
+    select: { id: true, capacity: true, pricePerNightPaise: true },
   })
   if (!property) throw new NotFoundError('Property not found.')
   if (input.guestCount > property.capacity) {
@@ -276,9 +293,27 @@ export async function updateBooking(
   })
   if (anyConflict(conflicts)) throw new ConflictError(conflictMessage(conflicts))
 
+  // Server-authoritative pricing, identical rules to the public booking path:
+  // the rate comes from the database and coupon rules are enforced atomically.
+  const nights = nightsBetweenDates(toUtcDate(input.checkIn), toUtcDate(input.checkOut))
+  const originalPricePaise = computeStayTotal(property.pricePerNightPaise, nights)
+
   const booking = await client.$transaction(async (tx) => {
     await tx.guest.deleteMany({ where: { bookingId: id } })
-    return tx.booking.update({
+    await tx.couponUsage.deleteMany({ where: { bookingId: id } })
+
+    let discountPaise = 0
+    let couponId: string | null = null
+    let couponCode: string | null = null
+    if (input.couponCode) {
+      const consumed = await consumeCouponInTransaction(tx, input.couponCode, originalPricePaise)
+      couponId = consumed.id
+      couponCode = consumed.code
+      discountPaise = consumed.discountPaise
+    }
+    const finalPricePaise = originalPricePaise - discountPaise
+
+    const updated = await tx.booking.update({
       where: { id },
       data: {
         propertyId: property.id,
@@ -287,6 +322,11 @@ export async function updateBooking(
         guestCount: input.guestCount,
         primaryPhone: input.primaryPhone,
         notes: input.notes || null,
+        originalPricePaise,
+        discountPaise,
+        finalPricePaise,
+        couponId,
+        couponCode,
         guestRecords: {
           create: input.guests.map((g: BookingGuestInput, idx: number) => ({
             fullName: g.fullName,
@@ -300,8 +340,13 @@ export async function updateBooking(
       },
       include: { ...propertyRefInclude, ...bookingGuestInclude },
     })
+
+    if (couponId) {
+      await tx.couponUsage.create({ data: { couponId, bookingId: id } })
+    }
+    return updated
   })
-  return serializeBookingDto(booking , true)
+  return serializeBookingDto(booking, true)
 }
 
 export async function cancelBooking(client: PrismaClient, id: string): Promise<AdminBookingDto> {
@@ -647,6 +692,14 @@ function serializePropertyRow(p: Record<string, unknown>): AdminPropertyDto {
     accent: p.accent as string,
     visual: p.visual as string,
     location: (p.location as string | null) ?? null,
+    pricePerNightPaise: p.pricePerNightPaise as number,
+    images: ((p.images as Array<Record<string, unknown>> | null) ?? []).map((img) => ({
+      id: img.id as string,
+      kind: img.kind as string,
+      sort: img.sort as number,
+      url: img.url as string,
+      alt: (img.alt as string | null) ?? '',
+    })),
   }
 }
 
@@ -674,6 +727,7 @@ export async function updateProperty(
       accent: input.accent,
       visual: input.visual,
       location: input.location,
+      pricePerNightPaise: input.pricePerNightPaise,
     },
     select: propertyFieldSelect,
   })
@@ -684,14 +738,15 @@ export async function deleteProperty(client: PrismaClient, id: string): Promise<
   const property = await client.property.findUnique({ where: { id }, select: { id: true } })
   if (!property) throw new NotFoundError('Property not found.')
 
-  const [bookingCount, airbnbCount, blockedCount] = await Promise.all([
+  const [bookingCount, airbnbCount, blockedCount, imageCount] = await Promise.all([
     client.booking.count({ where: { propertyId: id } }),
     client.airbnbReservation.count({ where: { propertyId: id } }),
     client.blockedDate.count({ where: { propertyId: id, airbnbReservationId: null } }),
+    client.propertyImage.count({ where: { propertyId: id } }),
   ])
-  if (bookingCount > 0 || airbnbCount > 0 || blockedCount > 0) {
+  if (bookingCount > 0 || airbnbCount > 0 || blockedCount > 0 || imageCount > 0) {
     throw new ConflictError(
-      'This property still has bookings, Airbnb reservations, or manually blocked dates.'
+      'This property still has bookings, Airbnb reservations, blocked dates, or photos.'
     )
   }
 

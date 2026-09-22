@@ -27,6 +27,8 @@ interface GuestDetailsFormProps {
   checkIn: string
   checkOut: string
   guestCount: number
+  /** Validated coupon code to attach to the booking. Sent verbatim; the server applies it. */
+  couponCode?: string
   onSuccess: (booking: BookingResponse, whatsAppOpened?: boolean) => void
 }
 
@@ -80,6 +82,7 @@ export default function GuestDetailsForm({
   checkIn,
   checkOut,
   guestCount,
+  couponCode,
   onSuccess,
 }: GuestDetailsFormProps) {
   const [primaryPhone, setPrimaryPhone] = useState('')
@@ -217,6 +220,7 @@ export default function GuestDetailsForm({
         gender: row.gender as GuestGenderValue,
         age: Number(row.age),
       })),
+      couponCode: couponCode && couponCode.trim() ? couponCode.trim() : undefined,
     }
 
     // Browser-safe WhatsApp: reserve the target tab synchronously while the

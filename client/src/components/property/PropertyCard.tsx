@@ -5,6 +5,7 @@ import type { Property } from '@/types'
 import { accentPalettes } from '@/config/accents'
 import PropertyVisual from '@/components/visuals/PropertyVisual'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { formatINR } from '@/lib/money'
 import { cn } from '@/lib/cn'
 
 interface PropertyCardProps {
@@ -49,15 +50,7 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
             className="scale-100 transition-transform duration-[900ms] ease-out group-hover:scale-[1.05]"
           />
         </div>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface-50/80 via-transparent to-black/10" />
-
-        <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/10 bg-surface/70 px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-text-secondary backdrop-blur-md">
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: accent.bright, boxShadow: `0 0 8px ${accent.main}` }}
-          />
-          {property.shortLabel}
-        </div>
+        
       </div>
 
       <div className="flex flex-1 flex-col p-6 lg:p-7">
@@ -93,6 +86,14 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
               {amenity}
             </span>
           ))}
+        </div>
+
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Nightly rate</p>
+          <p className="font-display text-xl font-bold tracking-tight text-text-primary">
+            {formatINR(property.pricePerNightPaise)}
+            <span className="ml-1 text-xs font-medium text-text-muted">/ night</span>
+          </p>
         </div>
 
         <div className="mt-7 flex flex-1 flex-col items-end gap-2.5">

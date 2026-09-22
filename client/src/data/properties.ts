@@ -30,6 +30,8 @@ export const properties: Property[] = [
       'City Views',
     ],
     location: null,
+    pricePerNightPaise: 300000,
+    images: [],
   },
   {
     id: '2',
@@ -59,6 +61,8 @@ export const properties: Property[] = [
       'Garden Views',
     ],
     location: null,
+    pricePerNightPaise: 300000,
+    images: [],
   },
   {
     id: '3',
@@ -88,6 +92,8 @@ export const properties: Property[] = [
       'Dual Views',
     ],
     location: null,
+    pricePerNightPaise: 300000,
+    images: [],
   },
 ]
 

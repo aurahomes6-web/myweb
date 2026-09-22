@@ -16,6 +16,8 @@ export interface PropertyUpdateInput {
   accent: string
   visual: string
   location: string | null
+  /** Nightly rate in integer paise (₹3,000 → 300000). Required server-side. */
+  pricePerNightPaise: number
 }
 
 export interface ValidationIssue {
@@ -60,6 +62,7 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
   const bedsRaw = body.beds === undefined || body.beds === null || body.beds === ''
     ? null
     : parsePositiveInt(body.beds)
+  const pricePerNightPaise = parsePositiveInt(body.pricePerNightPaise)
 
   const fields: Array<{ field: string; label: string; value: string | null }> = [
     { field: 'name', label: 'Property name', value: name },
@@ -81,6 +84,12 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
   if (sqft === null) issues.push({ field: 'sqft', message: 'Square footage must be a positive integer.' })
   if (bedsRaw === null && body.beds !== undefined && body.beds !== null && body.beds !== '') {
     issues.push({ field: 'beds', message: 'Beds must be a positive integer.' })
+  }
+  if (pricePerNightPaise === null) {
+    issues.push({
+      field: 'pricePerNightPaise',
+      message: 'Nightly rate must be a positive amount in paise.',
+    })
   }
 
   const amenitiesRaw = body.amenities
@@ -121,6 +130,7 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
       accent: accent as string,
       visual: visual as string,
       location,
+      pricePerNightPaise: pricePerNightPaise as number,
     },
   }
 }

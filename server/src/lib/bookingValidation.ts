@@ -1,5 +1,6 @@
 import { GuestGender } from '../generated/prisma/enums.js'
 import { validateRange } from './dateRange.js'
+import { normalizeCouponCode } from './couponValidation.js'
 import { asTrimmed, parsePositiveInt } from './validation.js'
 
 /**
@@ -40,6 +41,8 @@ export interface CreateBookingInput {
   primaryPhone: string
   guests: BookingGuestInput[]
   notes?: string
+  /** Optional referral/offer code. Server validates + applies the discount. */
+  couponCode?: string
 }
 
 export type BookingInputResult =
@@ -166,6 +169,11 @@ export function validateCreateBooking(body: unknown): BookingInputResult {
   const guestCount = parsePositiveInt(body.guestCount)
   const primaryPhone = asTrimmed(body.primaryPhone, 40)
   const notes = asTrimmed(body.notes, 1000)
+  const couponProvided = body.couponCode !== undefined && body.couponCode !== null && body.couponCode !== ''
+  const couponCode = couponProvided ? normalizeCouponCode(body.couponCode) : undefined
+  if (couponProvided && couponCode === null) {
+    issues.push({ field: 'couponCode', message: 'Coupon code looks invalid.' })
+  }
 
   if (!propertyId) {
     issues.push({ field: 'propertyId', message: 'propertyId is required.' })
@@ -244,6 +252,7 @@ export function validateCreateBooking(body: unknown): BookingInputResult {
       primaryPhone: normalizePhone(primaryPhone as string),
       guests,
       notes: notes ?? undefined,
+      couponCode: couponCode ?? undefined,
     },
   }
 }

@@ -1,11 +1,24 @@
 import type { NextFunction, Request, Response } from 'express'
+import multer from 'multer'
 import type { AdminConfig } from '../lib/adminAuth.js'
 import { ADMIN_COOKIE_NAME, checkAdminCredentials, clearSessionCookie, issueSession, sessionCookie } from '../lib/adminAuth.js'
 import { prisma } from '../lib/db.js'
 import { validateCreateBooking } from '../lib/bookingValidation.js'
 import { validateAdminAirbnb } from '../lib/airbnbValidation.js'
 import { parsePropertyUpdate } from '../lib/propertyValidation.js'
+import { parseCouponInput } from '../lib/couponValidation.js'
 import { BookingStatus } from '../generated/prisma/enums.js'
+import { uploadSingleImage, ImageTypeError } from '../lib/uploadImage.js'
+import { getObjectStorage } from '../storage/storage.js'
+import { uploadPropertyImage, deletePropertyImage, parseImageSlot } from '../services/imageService.js'
+import {
+  checkCouponUsable,
+  CouponInvalidError,
+  createCoupon,
+  deleteCoupon,
+  listCoupons,
+  setCouponActive,
+} from '../services/couponService.js'
 import {
   BadRequestError,
   ConflictError,
@@ -54,6 +67,17 @@ function wrap(
       }
       if (err instanceof BadRequestError) {
         return res.status(400).json(apiError('VALIDATION_ERROR', err.message))
+      }
+      if (err instanceof CouponInvalidError) {
+        const codeByReason: Record<string, string> = {
+          NOT_FOUND: 'COUPON_NOT_FOUND',
+          DEACTIVATED: 'COUPON_DEACTIVATED',
+          EXPIRED: 'COUPON_EXPIRED',
+          USAGE_EXCEEDED: 'COUPON_USAGE_EXCEEDED',
+        }
+        return res
+          .status(400)
+          .json(apiError(codeByReason[err.reason] ?? 'COUPON_INVALID', err.message))
       }
       return next(err)
     }
@@ -235,4 +259,84 @@ export const clearAllBookingDataHandler = wrap(async (req: Request, res: Respons
   if (!requireCleanupConfirmation(req, res, CLEANUP_CONFIRM_DELETE_ALL)) return
   const result = await clearAllBookingData(prisma)
   res.json({ ok: true, result })
+})
+
+// ── coupons ────────────────────────────────────────────────────────────────
+
+export const listCouponsHandler = wrap(async (_req: Request, res: Response) => {
+  const coupons = await listCoupons(prisma)
+  res.json({ coupons })
+})
+
+export const createCouponHandler = wrap(async (req: Request, res: Response) => {
+  const result = parseCouponInput(req.body)
+  if (!result.ok) return void validationError(res, result.issues)
+  const coupon = await createCoupon(prisma, result.value)
+  res.status(201).json({ coupon })
+})
+
+export const setCouponActiveHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const body = (req.body ?? {}) as Record<string, unknown>
+  if (typeof body.active !== 'boolean') {
+    return void validationError(res, [{ field: 'active', message: 'active must be true or false.' }])
+  }
+  const coupon = await setCouponActive(prisma, id, body.active)
+  res.json({ coupon })
+})
+
+export const deleteCouponHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const result = await deleteCoupon(prisma, id)
+  res.json(result)
+})
+
+// ── property photos ───────────────────────────────────────────────────────
+
+export function uploadImageMiddleware(req: Request, res: Response, next: NextFunction) {
+  uploadSingleImage(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError) {
+      const message =
+        err.code === 'LIMIT_FILE_SIZE'
+          ? 'Image must be 10 MB or smaller.'
+          : 'Only one image per request is allowed.'
+      return res.status(400).json(apiError('INVALID_IMAGE', message))
+    }
+    if (err instanceof ImageTypeError) {
+      return res.status(400).json(apiError('INVALID_IMAGE', err.message))
+    }
+    next(err)
+  })
+}
+
+export const uploadPropertyImageHandler = wrap(async (req: Request, res: Response) => {
+  const propertyId = typeof req.params.id === 'string' ? req.params.id : ''
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const slot = parseImageSlot(body.slot)
+  if (!slot) {
+    return void validationError(res, [
+      { field: 'slot', message: 'slot must be main, sub1, sub2, sub3 or extra.' },
+    ])
+  }
+  const alt = typeof body.alt === 'string' ? body.alt.trim().slice(0, 200) : ''
+  if (!req.file) {
+    return void validationError(res, [{ field: 'image', message: 'Choose an image to upload.' }])
+  }
+  const image = await uploadPropertyImage(
+    prisma,
+    getObjectStorage(),
+    propertyId,
+    slot,
+    req.file.buffer,
+    req.file.mimetype,
+    alt
+  )
+  res.status(201).json({ image })
+})
+
+export const deletePropertyImageHandler = wrap(async (req: Request, res: Response) => {
+  const propertyId = typeof req.params.id === 'string' ? req.params.id : ''
+  const imageId = typeof req.params.imageId === 'string' ? req.params.imageId : ''
+  const result = await deletePropertyImage(prisma, getObjectStorage(), propertyId, imageId)
+  res.json(result)
 })

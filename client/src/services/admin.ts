@@ -5,7 +5,11 @@ import type {
   AdminApiErrorShape,
   AdminBooking,
   AdminCleanupResult,
+  AdminCoupon,
+  AdminCouponPayload,
+  AdminImageSlot,
   AdminProperty,
+  AdminPropertyImage,
   AdminPropertyPayload,
   BookingUpdatePayload,
 } from '@/types/admin'
@@ -158,6 +162,85 @@ export async function updateAdminProperty(id: string, payload: AdminPropertyPayl
 
 export async function deleteAdminProperty(id: string): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/properties/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+// ── property photos (Phase 5) ──────────────────────────────────────────────
+//
+// Uploads are real multipart/form-data (`image` field + `slot` + optional
+// `alt`). The browser sets the multipart boundary, so the CSRF header travels
+// as a plain header exactly like every other admin mutation.
+
+function parseAdminError(json: unknown, fallback: string): AdminApiError {
+  const body = (json ?? null) as Partial<AdminApiErrorShape> | null
+  return new AdminApiError({
+    status: 400,
+    error: body?.error ?? 'INTERNAL_ERROR',
+    message: body?.message ?? fallback,
+    details: body?.details,
+  })
+}
+
+export async function uploadAdminPropertyImage(
+  propertyId: string,
+  slot: AdminImageSlot,
+  file: File,
+  alt = ''
+): Promise<AdminPropertyImage> {
+  const form = new FormData()
+  form.append('image', file)
+  form.append('slot', slot)
+  if (alt.trim()) form.append('alt', alt.trim())
+
+  const response = await fetch(
+    `${ADMIN_ENDPOINT}/properties/${encodeURIComponent(propertyId)}/images`,
+    {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'include',
+      body: form,
+    }
+  )
+  const json: unknown = await response.json().catch(() => null)
+  if (!response.ok) throw parseAdminError(json, 'Image upload failed. Please check the file and try again.')
+  return (json as { image: AdminPropertyImage }).image
+}
+
+export async function deleteAdminPropertyImage(propertyId: string, imageId: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(
+    `/properties/${encodeURIComponent(propertyId)}/images/${encodeURIComponent(imageId)}`,
+    { method: 'DELETE' }
+  )
+}
+
+// ── coupons (Phase 5) ──────────────────────────────────────────────────────
+//
+// Exact endpoints and payload shapes mirror server/src/routes/admin.ts and the
+// couponService DTO. Discount values are paise for FIXED and whole percents
+// for PERCENTAGE.
+
+export async function fetchAdminCoupons(): Promise<AdminCoupon[]> {
+  const body = await request<{ coupons: AdminCoupon[] }>('/coupons')
+  return body.coupons
+}
+
+export async function createAdminCoupon(payload: AdminCouponPayload): Promise<AdminCoupon> {
+  const body = await request<{ coupon: AdminCoupon }>('/coupons', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return body.coupon
+}
+
+export async function setAdminCouponActive(id: string, active: boolean): Promise<AdminCoupon> {
+  const body = await request<{ coupon: AdminCoupon }>(`/coupons/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active }),
+  })
+  return body.coupon
+}
+
+export async function deleteAdminCoupon(id: string): Promise<{ deleted: true }> {
+  return request<{ deleted: true }>(`/coupons/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
 // ── database cleanup ────────────────────────────────────────────────────────

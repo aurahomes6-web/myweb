@@ -16,6 +16,7 @@ import { useAvailability } from '@/hooks/useAvailability'
 import DateRangePicker from '@/components/booking/DateRangePicker'
 import GuestSelector from '@/components/booking/GuestSelector'
 import { formatShortDate } from '@/lib/date'
+import { formatINR } from '@/lib/money'
 import { cn } from '@/lib/cn'
 
 interface AvailabilityCardProps {
@@ -78,10 +79,16 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
 
   return (
     <section id="availability" className="card-surface relative flex flex-col overflow-hidden rounded-panel">
-      <div className="border-b border-surface-300/30 px-6 py-5">
+      <div className="flex items-center justify-between gap-4 border-b border-surface-300/30 px-6 py-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-purple-bright">
           Reserve Your Stay
         </p>
+        <div className="text-right">
+          <p className="font-display text-xl font-bold tracking-tight text-text-primary">
+            {formatINR(property.pricePerNightPaise)}
+          </p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-text-muted">per night · taxes extra</p>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-6 p-6">
@@ -192,7 +199,7 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
                       <p className="font-medium text-text-primary">Available for your dates</p>
                       <p className="text-xs text-text-muted">
                         {result.nights} night{result.nights === 1 ? '' : 's'} · {guests} guest
-                        {guests === 1 ? '' : 's'}
+                        {guests === 1 ? '' : 's'} · est. {formatINR(property.pricePerNightPaise * result.nights)}
                       </p>
                     </div>
                   </motion.div>

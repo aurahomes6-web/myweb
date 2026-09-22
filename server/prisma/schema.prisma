@@ -25,30 +25,91 @@ model Property {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   beds               Int?
+  /// Price per night in integer paise (₹3,000 → 300000). Phase 5.
+  pricePerNightPaise Int                 @default(300000)
   airbnbReservations AirbnbReservation[]
   blockedDates       BlockedDate[]
   bookings           Booking[]
+  images             PropertyImage[]
 
   @@index([slug])
 }
 
 model Booking {
-  id           String        @id @default(cuid())
-  code         String        @unique
-  propertyId   String
-  checkIn      DateTime      @db.Date
-  checkOut     DateTime      @db.Date
-  notes        String?
-  status       BookingStatus @default(PENDING)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  guestCount   Int
-  primaryPhone String
-  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  guestRecords Guest[]
+  id                 String        @id @default(cuid())
+  code               String        @unique
+  propertyId         String
+  checkIn            DateTime      @db.Date
+  checkOut           DateTime      @db.Date
+  notes              String?
+  status             BookingStatus @default(PENDING)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  guestCount         Int
+  primaryPhone       String
+  /// Price snapshot at booking time, in paise. Set server-side only.
+  originalPricePaise Int?
+  discountPaise      Int?
+  finalPricePaise    Int?
+  couponId           String?
+  /// Denormalized coupon code snapshot so history/WhatsApp never depend on the coupon row surviving.
+  couponCode         String?
+  property           Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guestRecords       Guest[]
+  coupon             Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponUsage        CouponUsage?
 
   @@index([propertyId, checkIn, checkOut])
   @@index([status])
+  @@index([couponCode])
+}
+
+model PropertyImage {
+  id         String           @id @default(cuid())
+  propertyId String
+  kind       PropertyImageKind
+  sort       Int              @default(0)
+  /// Public, persistent object-store URL.
+  url        String
+  /// Provider storage key used to delete the object (never exposed publicly).
+  storageKey String
+  alt        String           @default("")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  property   Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, kind, sort])
+  @@index([propertyId, kind])
+}
+
+model Coupon {
+  id            String             @id @default(cuid())
+  code          String             @unique
+  discountType  CouponDiscountType
+  /// FIXED → paise; PERCENTAGE → whole percent (1–100).
+  discountValue Int
+  maxUses       Int?
+  expiresAt     DateTime?
+  deactivatedAt DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  /// Denormalized, atomically incremented usage counter (guards maxUses under concurrency).
+  uses          Int                @default(0)
+  usages        CouponUsage[]
+  bookings      Booking[]
+
+  @@index([code])
+}
+
+model CouponUsage {
+  id        String   @id @default(cuid())
+  couponId  String
+  bookingId String   @unique
+  usedAt    DateTime @default(now())
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
 }
 
 model Guest {
@@ -130,4 +191,17 @@ enum GuestGender {
 enum AirbnbStatus {
   ACTIVE
   CANCELLED
+}
+
+enum PropertyImageKind {
+  MAIN
+  SUB1
+  SUB2
+  SUB3
+  EXTRA
+}
+
+enum CouponDiscountType {
+  FIXED
+  PERCENTAGE
 }

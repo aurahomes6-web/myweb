@@ -6,6 +6,7 @@ import availabilityRoutes from './routes/availability.js'
 import bookingRoutes from './routes/bookings.js'
 import propertyRoutes from './routes/properties.js'
 import airbnbRoutes from './routes/airbnb.js'
+import couponRoutes from './routes/coupons.js'
 import adminRoutes from './routes/admin.js'
 
 const app = express()
@@ -19,6 +20,7 @@ app.use('/api/availability', availabilityRoutes)
 app.use('/api/bookings', bookingRoutes)
 app.use('/api/properties', propertyRoutes)
 app.use('/api/airbnb', airbnbRoutes)
+app.use('/api/coupons', couponRoutes)
 app.use('/api/admin', adminRoutes)
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

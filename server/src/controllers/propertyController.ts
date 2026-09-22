@@ -1,8 +1,50 @@
 import { Request, Response } from 'express'
+import { PropertyImageKind } from '../generated/prisma/enums.js'
 import type { Property } from '../generated/prisma/client.js'
 import { prisma } from '../lib/db.js'
 
-function serializeProperty(property: Property) {
+export interface PublicPropertyImage {
+  id: string
+  kind: PropertyImageKind
+  sort: number
+  url: string
+  alt: string
+}
+
+interface PropertyImageRow {
+  id: string
+  kind: PropertyImageKind
+  sort: number
+  url: string
+  alt: string
+}
+
+export interface PublicProperty {
+  id: string
+  slug: string
+  name: string
+  shortLabel: string
+  description: string
+  shortDescription: string
+  capacity: number
+  bedrooms: number
+  beds: number | null
+  bathrooms: number
+  sqft: number
+  amenities: string[]
+  accent: string
+  visual: string
+  location: string | null
+  /** Nightly rate in integer paise (₹3,000 → 300000). */
+  pricePerNightPaise: number
+  images: PublicPropertyImage[]
+}
+
+function serializeImage(image: PropertyImageRow): PublicPropertyImage {
+  return { id: image.id, kind: image.kind, sort: image.sort, url: image.url, alt: image.alt }
+}
+
+function serializeProperty(property: Property & { images?: PropertyImageRow[] }): PublicProperty {
   return {
     id: property.id,
     slug: property.slug,
@@ -19,12 +61,21 @@ function serializeProperty(property: Property) {
     accent: property.accent,
     visual: property.visual,
     location: property.location,
+    pricePerNightPaise: property.pricePerNightPaise,
+    images: (property.images ?? []).map(serializeImage),
   }
 }
+
+const propertyInclude = {
+  images: {
+    orderBy: { sort: 'asc' as const },
+  },
+} as const
 
 export async function listPropertiesHandler(_req: Request, res: Response) {
   const properties = await prisma.property.findMany({
     orderBy: { name: 'asc' },
+    include: propertyInclude,
   })
   res.json({ properties: properties.map(serializeProperty) })
 }
@@ -37,6 +88,7 @@ export async function getPropertyHandler(req: Request, res: Response) {
 
   const property = await prisma.property.findFirst({
     where: { OR: [{ id: reference }, { slug: reference }] },
+    include: propertyInclude,
   })
 
   if (!property) {

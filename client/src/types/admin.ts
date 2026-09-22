@@ -2,6 +2,15 @@ import type { BookingStatusValue, GuestGenderValue } from '@/types'
 
 export type AirbnbStatusValue = 'ACTIVE' | 'CANCELLED'
 
+/** An uploaded property photograph (Phase 5), shaped like the admin serializer. */
+export interface AdminPropertyImage {
+  id: string
+  kind: string
+  sort: number
+  url: string
+  alt: string
+}
+
 export interface AdminPropertyRef {
   id: string
   name: string
@@ -79,6 +88,10 @@ export interface AdminProperty {
   accent: string
   visual: string
   location: string | null
+  /** Nightly rate in integer paise (₹3,000 → 300000). Server-authoritative. */
+  pricePerNightPaise: number
+  /** Uploaded photographs (Phase 5). Empty when the static fallbacks are used. */
+  images: AdminPropertyImage[]
 }
 
 export interface AdminGuestPayload {
@@ -111,7 +124,38 @@ export interface AdminAirbnbPayload {
   guests: AdminGuestPayload[]
 }
 
-export type AdminPropertyPayload = Omit<AdminProperty, 'id' | 'slug'>
+export type AdminPropertyPayload = Omit<AdminProperty, 'id' | 'slug' | 'images'>
+
+/** Image slot names accepted by the admin image endpoints (server: imageService). */
+export type AdminImageSlot = 'main' | 'sub1' | 'sub2' | 'sub3' | 'extra'
+
+export type AdminCouponDiscountType = 'FIXED' | 'PERCENTAGE'
+
+/** Coupon row as returned by the admin coupon endpoints (server: couponService DTO). */
+export interface AdminCoupon {
+  id: string
+  code: string
+  discountType: AdminCouponDiscountType
+  /** FIXED → paise; PERCENTAGE → whole percent. */
+  discountValue: number
+  maxUses: number | null
+  expiresAt: string | null
+  deactivatedAt: string | null
+  createdAt: string
+  updatedAt: string
+  uses: number
+  usageCount: number
+}
+
+/** Payload for creating a coupon (server: parseCouponInput — exact fields). */
+export interface AdminCouponPayload {
+  code: string
+  discountType: AdminCouponDiscountType
+  discountValue: number
+  maxUses: number | null
+  /** YYYY-MM-DD date. Server stores it as end-of-day UTC. */
+  expiresAt: string | null
+}
 
 /** Error shape returned by the admin API (mirrors the server controller). */
 export interface AdminApiErrorShape {

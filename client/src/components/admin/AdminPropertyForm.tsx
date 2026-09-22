@@ -4,6 +4,8 @@ import type { AdminProperty } from '@/types/admin'
 import { AdminApiError, updateAdminProperty } from '@/services/admin'
 import { DetailList, ErrorBanner, Field, Select, TextArea, TextInput } from '@/components/admin/AdminFormControls'
 import Button from '@/components/ui/Button'
+import { PropertyImageManager } from '@/components/admin/PropertyImageManager'
+import { formatINRWithoutSymbol, parseINRToPaise } from '@/lib/money'
 
 interface AdminPropertyFormProps {
   property: AdminProperty
@@ -38,6 +40,7 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
   const [accent, setAccent] = useState<string>(ACCENTS.includes(property.accent as (typeof ACCENTS)[number]) ? property.accent : 'purple')
   const [visual, setVisual] = useState<string>(VISUALS.includes(property.visual as (typeof VISUALS)[number]) ? property.visual : 'moon')
   const [location, setLocation] = useState(property.location ?? '')
+  const [priceInput, setPriceInput] = useState(formatINRWithoutSymbol(property.pricePerNightPaise))
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,6 +56,8 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
     if (beds.trim() !== '' && numberOr(beds, -1) < 0) errors.push('Beds cannot be negative.')
     if (numberOr(bathrooms) < 0) errors.push('Bathrooms cannot be negative.')
     if (numberOr(sqft, -1) <= 0) errors.push('Interior size must be greater than 0.')
+    const pricePaise = parseINRToPaise(priceInput)
+    if (pricePaise === null || pricePaise <= 0) errors.push('Nightly price must be a positive amount in ₹.')
     return errors
   }
 
@@ -81,6 +86,7 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
         accent: (ACCENTS as readonly string[]).includes(accent) ? accent : 'purple',
         visual: (VISUALS as readonly string[]).includes(visual) ? visual : 'moon',
         location: location.trim() || null,
+        pricePerNightPaise: parseINRToPaise(priceInput) as number,
       })
       onSaved()
     } catch (err) {
@@ -146,6 +152,16 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
           <Field label="Interior size (sqft)">
             <TextInput type="number" min={1} value={sqft} onChange={(event) => setSqft(event.target.value.replace(/\D/g, ''))} disabled={submitting} />
           </Field>
+          <Field label="Price per night (₹)" hint="Normal rupees, e.g. “3000” or “3,500”. Saved as paise and used everywhere on the public site.">
+            <TextInput
+              type="text"
+              inputMode="decimal"
+              value={priceInput}
+              onChange={(event) => setPriceInput(event.target.value.replace(/[^\d,.\s]/g, ''))}
+              placeholder="3,000"
+              disabled={submitting}
+            />
+          </Field>
           <Field label="Accent">
             <Select value={accent} onChange={(event) => setAccent(event.target.value)} disabled={submitting}>
               {ACCENTS.map((value) => <option key={value} value={value}>{ACCENT_LABELS[value]}</option>)}
@@ -167,6 +183,10 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
               disabled={submitting}
             />
           </Field>
+        </div>
+
+        <div className="border-t border-surface-300/30 pt-6">
+          <PropertyImageManager propertyId={property.id} images={property.images} />
         </div>
 
         <div className="flex items-center justify-end gap-3">

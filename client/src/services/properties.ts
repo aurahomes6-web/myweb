@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react'
 import { API_BASE_URL } from '@/config/api'
 import { imageAssets } from '@/config/images'
 import { properties as fallbackProperties } from '@/data/properties'
-import type { AccentKind, Property, PropertySlug, VisualKind } from '@/types'
+import type {
+  AccentKind,
+  Property,
+  PropertyApiImage,
+  PropertyImage,
+  PropertySlug,
+  VisualKind,
+} from '@/types'
 
 /**
  * Public properties service.
@@ -33,6 +40,10 @@ interface PublicPropertyApiItem {
   accent: string
   visual: string
   location: string | null
+  /** Nightly rate in integer paise (₹3,000 → 300000). Phase 5. */
+  pricePerNightPaise: number
+  /** DB-backed images (Phase 5), shaped exactly like the public serializer. */
+  images: PropertyApiImage[]
 }
 
 function isAccent(value: string): value is AccentKind {
@@ -43,8 +54,40 @@ function isVisual(value: string): value is VisualKind {
   return value === 'moon' || value === 'dawn' || value === 'evening'
 }
 
+/** Canonical gallery order for admin-uploaded slots (MAIN → sub1–3 → extra). */
+const GALLERY_KIND_ORDER: Record<string, number> = {
+  MAIN: 0,
+  SUB1: 1,
+  SUB2: 2,
+  SUB3: 3,
+  EXTRA: 4,
+}
+
+/**
+ * Convert DB-backed photos into the gallery shape. When a property has any
+ * uploaded images they take over the gallery entirely (old static artwork is
+ * only a fallback for properties with no uploads), preserving slot order.
+ */
+function buildDbGallery(images: PropertyApiImage[], accent: AccentKind): PropertyImage[] {
+  return [...images]
+    .sort(
+      (a, b) => (GALLERY_KIND_ORDER[a.kind] ?? 9) - (GALLERY_KIND_ORDER[b.kind] ?? 9) || a.sort - b.sort
+    )
+    .map((img) => ({
+      id: img.id,
+      label: img.alt || 'AURA HOMES property photo',
+      image: img.url,
+      accent,
+      variant: 'moon' as VisualKind,
+    }))
+}
+
 function toProperty(item: PublicPropertyApiItem): Property {
   const assets = imageAssets.properties[item.slug as PropertySlug]
+  const accent: AccentKind = isAccent(item.accent) ? item.accent : 'purple'
+  const visual: VisualKind = isVisual(item.visual) ? item.visual : 'moon'
+  const dbImages: PropertyApiImage[] = item.images ?? []
+  const mainDb = dbImages.find((img) => img.kind === 'MAIN')
   return {
     id: item.id,
     slug: item.slug as PropertySlug,
@@ -52,10 +95,12 @@ function toProperty(item: PublicPropertyApiItem): Property {
     shortLabel: item.shortLabel,
     description: item.description,
     shortDescription: item.shortDescription,
-    image: assets?.mainImage ?? null,
-    gallery: assets?.gallery ?? [],
-    accent: isAccent(item.accent) ? item.accent : 'purple',
-    visual: isVisual(item.visual) ? item.visual : 'moon',
+    pricePerNightPaise: item.pricePerNightPaise,
+    images: item.images,
+    image: mainDb?.url ?? assets?.mainImage ?? null,
+    gallery: dbImages.length > 0 ? buildDbGallery(dbImages, accent) : (assets?.gallery ?? []),
+    accent,
+    visual,
     capacity: item.capacity,
     bedrooms: item.bedrooms,
     beds: item.beds ?? undefined,
