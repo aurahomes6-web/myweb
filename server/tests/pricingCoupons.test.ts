@@ -23,6 +23,7 @@ import {
   uploadPropertyImage,
 } from '../src/services/imageService.js'
 import { getObjectStorage, MemoryStorage } from '../src/storage/storage.js'
+import { parseLocalEnv } from '../src/lib/env.js'
 import { buildWhatsAppMessage } from '../src/services/notificationService.js'
 import { ConflictError, NotFoundError, BadRequestError } from '../src/services/adminService.js'
 
@@ -456,6 +457,34 @@ test('MemoryStorage stores by key and deletes', async () => {
   assert.ok(storage.has('properties/a/x'))
   await storage.delete('properties/a/x')
   assert.equal(storage.has('properties/a/x'), false)
+})
+
+// ── local env loading .env.local ───────────────────────────────────────────
+
+test('parseLocalEnv reads plain and quoted single-line values and ignores comments', () => {
+  const parsed = parseLocalEnv(
+    '# comment\nBLOB_READ_WRITE_TOKEN="vercel_blob_rw_abcdef"\nBLOB_STORE_ID=blob_xs8zY5\nNODE_ENV="development"\n'
+  )
+  assert.deepEqual(parsed, {
+    BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_abcdef',
+    BLOB_STORE_ID: 'blob_xs8zY5',
+    NODE_ENV: 'development',
+  })
+})
+
+test('parseLocalEnv joins multi-line double-quoted values (Vercel PEM webhook key)', () => {
+  const text = [
+    'BLOB_WEBHOOK_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----',
+    'MCowBQYDK2VwAyEAtc5QZbYHRxvH0kAEk5nXp2W/0sY=',
+    '-----END PUBLIC KEY-----"',
+    'BLOB_READ_WRITE_TOKEN="vercel_blob_rw_xyz"',
+  ].join('\n')
+  const parsed = parseLocalEnv(text)
+  const pem = parsed.BLOB_WEBHOOK_PUBLIC_KEY ?? ''
+  assert.ok(pem.startsWith('-----BEGIN PUBLIC KEY-----'))
+  assert.ok(pem.endsWith('-----END PUBLIC KEY-----'))
+  assert.ok(pem.includes('\nMCowBQYDK2VwAyEAtc5QZbYHRxvH0kAEk5nXp2W/0sY='))
+  assert.equal(parsed.BLOB_READ_WRITE_TOKEN, 'vercel_blob_rw_xyz')
 })
 
 test('getObjectStorage falls back to memory when no blob token is configured', () => {

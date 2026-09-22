@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './lib/env.js'
 import express, { NextFunction, Request, Response } from 'express'
 import cors from 'cors'
 import healthRoutes from './routes/health.js'
