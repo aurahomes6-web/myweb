@@ -8,13 +8,17 @@ datasource db {
 }
 
 model Property {
-  id                 String              @id @default(cuid())
-  slug               String              @unique
+  id                 String                @id @default(cuid())
+  slug               String                @unique
   name               String
   shortLabel         String
   description        String
   shortDescription   String
+  /// Maximum sleeping capacity for the home. Kept in sync with the admin-set
+  /// “max guests” of THE SPACE so booking/availability validation is unchanged.
   capacity           Int
+  /// Minimum guests accepted for this home (THE SPACE capacity range).
+  minGuests          Int                   @default(1)
   bedrooms           Int
   bathrooms          Int
   sqft               Int
@@ -22,17 +26,35 @@ model Property {
   accent             String
   visual             String
   location           String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
   beds               Int?
   /// Price per night in integer paise (₹3,000 → 300000). Phase 5.
-  pricePerNightPaise Int                 @default(300000)
+  pricePerNightPaise Int                   @default(300000)
   airbnbReservations AirbnbReservation[]
   blockedDates       BlockedDate[]
   bookings           Booking[]
   images             PropertyImage[]
+  spaceAttributes    PropertySpaceAttribute[]
 
   @@index([slug])
+}
+
+/// A single admin-defined “THE SPACE” card shown on the public property page.
+/// Every property owns its own ordered list; arbitrary labels/values are allowed.
+model PropertySpaceAttribute {
+  id         String   @id @default(cuid())
+  propertyId String
+  label      String
+  value      String
+  /// Optional icon identifier (see server/src/lib/spaceValidation.ts allowed set).
+  icon       String?
+  sort       Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sort])
 }
 
 model Booking {

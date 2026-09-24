@@ -15,6 +15,7 @@ import {
   deletePropertyImageHandler,
   getAirbnbHandler,
   getBookingHandler,
+  getPropertySpaceHandler,
   listAirbnbHandler,
   listBookingsHandler,
   listCouponsHandler,
@@ -26,6 +27,7 @@ import {
   updateAirbnbHandler,
   updateBookingHandler,
   updatePropertyHandler,
+  updatePropertySpaceHandler,
   uploadPropertyImageHandler,
   uploadImageMiddleware,
 } from '../controllers/adminController.js'
@@ -56,6 +58,10 @@ router.delete('/airbnb/:id', requireCsrfHeader, auth, deleteAirbnbHandler)
 router.get('/properties', auth, listPropertiesHandler)
 router.patch('/properties/:id', requireCsrfHeader, auth, updatePropertyHandler)
 router.delete('/properties/:id', requireCsrfHeader, auth, deletePropertyHandler)
+
+// THE SPACE: per-property capacity range + ordered attribute cards.
+router.get('/properties/:id/space', auth, getPropertySpaceHandler)
+router.put('/properties/:id/space', requireCsrfHeader, auth, updatePropertySpaceHandler)
 
 // Phase 5: photo upload/delete + promo coupons (auth + CSRF everywhere).
 router.post(

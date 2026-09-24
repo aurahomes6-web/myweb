@@ -11,6 +11,36 @@ export interface AdminPropertyImage {
   alt: string
 }
 
+/** One “THE SPACE” attribute card as returned by the admin API. */
+export interface AdminSpaceAttribute {
+  id: string
+  label: string
+  value: string
+  icon: string | null
+  sort: number
+}
+
+/** Editable “THE SPACE” attribute card sent when saving. */
+export interface AdminSpaceAttributeInput {
+  label: string
+  value: string
+  icon: string | null
+}
+
+/** Full “THE SPACE” document returned by GET/PUT /admin/properties/:id/space. */
+export interface AdminPropertySpace {
+  minGuests: number
+  maxGuests: number
+  attributes: AdminSpaceAttribute[]
+}
+
+/** Payload for PUT /admin/properties/:id/space (full replace). */
+export interface AdminPropertySpacePayload {
+  minGuests: number
+  maxGuests: number
+  attributes: AdminSpaceAttributeInput[]
+}
+
 export interface AdminPropertyRef {
   id: string
   name: string
@@ -80,6 +110,8 @@ export interface AdminProperty {
   description: string
   shortDescription: string
   capacity: number
+  minGuests: number
+  maxGuests: number
   bedrooms: number
   beds: number | null
   bathrooms: number
@@ -92,6 +124,8 @@ export interface AdminProperty {
   pricePerNightPaise: number
   /** Uploaded photographs (Phase 5). Empty when the static fallbacks are used. */
   images: AdminPropertyImage[]
+  /** Ordered THE SPACE attribute cards for this home. */
+  spaceAttributes: AdminSpaceAttribute[]
 }
 
 export interface AdminGuestPayload {
@@ -124,7 +158,10 @@ export interface AdminAirbnbPayload {
   guests: AdminGuestPayload[]
 }
 
-export type AdminPropertyPayload = Omit<AdminProperty, 'id' | 'slug' | 'images'>
+export type AdminPropertyPayload = Omit<
+  AdminProperty,
+  'id' | 'slug' | 'images' | 'minGuests' | 'maxGuests' | 'spaceAttributes'
+>
 
 /** Image slot names accepted by the admin image endpoints (server: imageService). */
 export type AdminImageSlot = 'main' | 'sub1' | 'sub2' | 'sub3' | 'extra'

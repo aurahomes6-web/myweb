@@ -6,6 +6,7 @@ import { prisma } from '../lib/db.js'
 import { validateCreateBooking } from '../lib/bookingValidation.js'
 import { validateAdminAirbnb } from '../lib/airbnbValidation.js'
 import { parsePropertyUpdate } from '../lib/propertyValidation.js'
+import { parseSpaceConfig } from '../lib/spaceValidation.js'
 import { parseCouponInput } from '../lib/couponValidation.js'
 import { BookingStatus } from '../generated/prisma/enums.js'
 import { uploadSingleImage, ImageTypeError } from '../lib/uploadImage.js'
@@ -34,12 +35,14 @@ import {
   deleteProperty,
   getAirbnb,
   getBooking,
+  getPropertySpace,
   listAirbnb,
   listBookings,
   listProperties,
   updateAirbnb,
   updateBooking,
   updateProperty,
+  updatePropertySpace,
 } from '../services/adminService.js'
 
 /**
@@ -215,6 +218,20 @@ export const deletePropertyHandler = wrap(async (req: Request, res: Response) =>
   const id = typeof req.params.id === 'string' ? req.params.id : ''
   const result = await deleteProperty(prisma, id)
   res.json(result)
+})
+
+export const getPropertySpaceHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const space = await getPropertySpace(prisma, id)
+  res.json({ space })
+})
+
+export const updatePropertySpaceHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const result = parseSpaceConfig(req.body)
+  if (!result.ok) return void validationError(res, result.issues)
+  const space = await updatePropertySpace(prisma, id, result.value)
+  res.json({ space })
 })
 
 // ── database cleanup ────────────────────────────────────────────────────────

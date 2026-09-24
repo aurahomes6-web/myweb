@@ -1,10 +1,19 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Users, BedDouble, Bath, Maximize, MapPin, Sparkles, Loader2 } from 'lucide-react'
+import { ArrowLeft, Users, MapPin, Sparkles, Loader2, type LucideIcon } from 'lucide-react'
 import { usePropertyBySlug } from '@/services/properties'
 import { accentPalettes } from '@/config/accents'
+import { spaceIconOrDefault } from '@/config/spaceIcons'
+import { formatGuestCapacity } from '@/lib/space'
 import ImageGallery from '@/components/gallery/ImageGallery'
 import AvailabilityCard from '@/components/booking/AvailabilityCard'
 import NotFoundContent from '@/components/ui/NotFoundContent'
+
+interface SpaceSpec {
+  key: string
+  icon: LucideIcon
+  label: string
+  value: string
+}
 
 export default function PropertyDetailPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -24,12 +33,21 @@ export default function PropertyDetailPage() {
 
   const accent = accentPalettes[property.accent]
 
-  const specs = [
-    { icon: Users, label: 'Capacity', value: `${property.capacity} guests` },
-    { icon: BedDouble, label: 'Bedrooms', value: `${property.bedrooms}` },
-    { icon: Bath, label: 'Bathrooms', value: `${property.bathrooms}` },
-    { icon: Maximize, label: 'Interior', value: `${property.sqft} sqft` },
-  ]
+  const specs: SpaceSpec[] = []
+  specs.push({
+    key: 'capacity',
+    icon: Users,
+    label: 'Capacity',
+    value: formatGuestCapacity(property.minGuests, property.maxGuests),
+  })
+  for (const attribute of property.spaceAttributes) {
+    specs.push({
+      key: attribute.id,
+      icon: spaceIconOrDefault(attribute.icon),
+      label: attribute.label,
+      value: attribute.value,
+    })
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-28 pt-28 sm:px-8 lg:pt-32">
@@ -124,26 +142,28 @@ export default function PropertyDetailPage() {
           </section>
 
           {/* The space */}
-          <section id="space">
-            <h2 className="mb-7 font-display text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
-              THE SPACE
-            </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {specs.map(({ icon: Icon, label, value }) => (
-                <div
-                  key={label}
-                  className="card-surface flex flex-col items-start gap-2 rounded-card p-5"
-                  style={{ borderTopColor: `color-mix(in srgb, ${accent.main} 55%, transparent)` }}
-                >
-                  <Icon size={20} style={{ color: accent.bright }} strokeWidth={1.75} />
-                  <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">
-                    {label}
-                  </p>
-                  <p className="font-display text-lg font-semibold text-text-primary">{value}</p>
-                </div>
-              ))}
-            </div>
-          </section>
+          {specs.length > 0 && (
+            <section id="space">
+              <h2 className="mb-7 font-display text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                THE SPACE
+              </h2>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {specs.map(({ icon: Icon, label, value, key }) => (
+                  <div
+                    key={key}
+                    className="card-surface flex flex-col items-start gap-2 rounded-card p-5"
+                    style={{ borderTopColor: `color-mix(in srgb, ${accent.main} 55%, transparent)` }}
+                  >
+                    <Icon size={20} style={{ color: accent.bright }} strokeWidth={1.75} />
+                    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">
+                      {label}
+                    </p>
+                    <p className="font-display text-lg font-semibold text-text-primary">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <aside className="lg:sticky lg:top-28 lg:self-start">

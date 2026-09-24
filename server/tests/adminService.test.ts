@@ -17,11 +17,13 @@ import {
   deleteProperty,
   getAirbnb,
   getBooking,
+  getPropertySpace,
   listAirbnb,
   listBookings,
   updateAirbnb,
   updateBooking,
   updateProperty,
+  updatePropertySpace,
 } from '../src/services/adminService.js'
 import { collectConflicts } from '../src/services/overlapService.js'
 
@@ -76,6 +78,7 @@ class FakeDb {
   airbnbs: Array<Record<string, unknown>> = []
   airbnbGuests: Array<Record<string, unknown>> = []
   blockedDates: Array<Record<string, unknown>> = []
+  spaceAttributes: Array<Record<string, unknown>> = []
   couponUsage: any = {
     deleteMany: async ({ where }: any = {}) => ({ count: 0 }),
     create: async ({ data }: any = {}) => ({ id: 'usage-1', ...data }),
@@ -89,6 +92,19 @@ class FakeDb {
 
   private propertyFor(propertyId: string): Record<string, unknown> | null {
     return this.properties.find((p) => p.id === propertyId) ?? null
+  }
+
+  private spaceAttrsFor(propertyId: string) {
+    return this.spaceAttributes
+      .filter((attr) => attr.propertyId === propertyId)
+      .sort((a, b) => (a.sort as number) - (b.sort as number))
+      .map((attr) => ({
+        id: attr.id,
+        label: attr.label,
+        value: attr.value,
+        icon: attr.icon ?? null,
+        sort: attr.sort,
+      }))
   }
 
   private presentProperty(p: Record<string, unknown>) {
@@ -125,7 +141,9 @@ class FakeDb {
       const project = (r: Record<string, unknown>) => {
         if (!select) return { ...r }
         const out: Record<string, unknown> = {}
-        for (const key of Object.keys(select)) out[key] = r[key]
+        for (const key of Object.keys(select)) {
+          out[key] = key === 'spaceAttributes' ? this.spaceAttrsFor(r.id as string) : r[key]
+        }
         return out
       }
       return rows.map(project)
@@ -135,7 +153,9 @@ class FakeDb {
       if (!row) return null
       if (!select) return row
       const out: Record<string, unknown> = {}
-      for (const key of Object.keys(select)) out[key] = row[key]
+      for (const key of Object.keys(select)) {
+        out[key] = key === 'spaceAttributes' ? this.spaceAttrsFor(row.id as string) : row[key]
+      }
       return out
     },
     findUnique: async ({ where, select }: any = {}) => {
@@ -143,7 +163,9 @@ class FakeDb {
       if (!row) return null
       if (!select) return row
       const out: Record<string, unknown> = {}
-      for (const key of Object.keys(select)) out[key] = row[key]
+      for (const key of Object.keys(select)) {
+        out[key] = key === 'spaceAttributes' ? this.spaceAttrsFor(row.id as string) : row[key]
+      }
       return out
     },
     update: async ({ where, data, select }: any = {}) => {
@@ -153,13 +175,42 @@ class FakeDb {
       row.updatedAt = new Date()
       if (!select) return row
       const out: Record<string, unknown> = {}
-      for (const key of Object.keys(select)) out[key] = row[key]
+      for (const key of Object.keys(select)) {
+        out[key] = key === 'spaceAttributes' ? this.spaceAttrsFor(row.id as string) : row[key]
+      }
       return out
     },
     delete: async ({ where }: any = {}) => {
       const idx = this.properties.findIndex((r) => matches(where, r))
       assert.ok(idx >= 0, 'property.delete: row not found')
       this.properties.splice(idx, 1)
+    },
+  }
+
+  // ── the space attributes ──
+  propertySpaceAttribute: any = {
+    findMany: async ({ where, orderBy }: any = {}) => {
+      let rows = this.spaceAttributes.filter((r) => matches(where, r))
+      if (orderBy && orderBy.sort === 'asc') {
+        rows = [...rows].sort((a, b) => (a.sort as number) - (b.sort as number))
+      }
+      return rows.map((r) => ({ ...r }))
+    },
+    deleteMany: async ({ where }: any = {}) => {
+      const doomed = this.spaceAttributes.filter((r) => matches(where, r))
+      this.spaceAttributes = this.spaceAttributes.filter((r) => !matches(where, r))
+      return { count: doomed.length }
+    },
+    createMany: async ({ data }: any = {}) => {
+      for (const entry of data ?? []) {
+        this.spaceAttributes.push({
+          id: nextId('spaceattr'),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...entry,
+        })
+      }
+      return { count: (data ?? []).length }
     },
   }
 
@@ -376,6 +427,7 @@ function seedProperty(fake: FakeDb, overrides: Record<string, unknown> = {}) {
     description: 'A quiet stay.',
     shortDescription: 'Cosy penthouse.',
     capacity: 3,
+    minGuests: 1,
     bedrooms: 1,
     beds: 2,
     bathrooms: 1,
@@ -914,6 +966,128 @@ test('deleteProperty rejects unknown id', async () => {
   seedProperty(fake)
   await assert.rejects(
     () => deleteProperty(asClient(fake), 'missing'),
+    (err: unknown) => err instanceof NotFoundError
+  )
+})
+
+// ── THE SPACE ───────────────────────────────────────────────────────────────
+
+test('updatePropertySpace saves a capacity range and attributes for one property only', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  seedProperty(fake, { id: 'prop-2', slug: 'aura-lakehouse-2', name: 'Aura Lakehouse 2', capacity: 4 })
+
+  const space = await updatePropertySpace(asClient(fake), 'prop-1', {
+    minGuests: 2,
+    maxGuests: 6,
+    attributes: [
+      { label: 'Kitchen', value: 'Fully equipped', icon: 'kitchen' },
+      { label: 'Balcony', value: '150 sqft', icon: 'terrace' },
+    ],
+  })
+
+  assert.equal(space.minGuests, 2)
+  assert.equal(space.maxGuests, 6)
+  assert.deepStrictEqual(
+    space.attributes.map((a) => a.label),
+    ['Kitchen', 'Balcony']
+  )
+
+  // capacity stays the authoritative max so booking validation is unchanged.
+  const prop1 = fake.properties.find((p) => p.id === 'prop-1')
+  assert.equal(prop1?.capacity, 6)
+  assert.equal(prop1?.minGuests, 2)
+
+  // Penthouse 2 must be untouched.
+  const other = await getPropertySpace(asClient(fake), 'prop-2')
+  assert.equal(other.minGuests, 1)
+  assert.equal(other.maxGuests, 4)
+  assert.deepStrictEqual(other.attributes, [])
+  assert.equal(fake.properties.find((p) => p.id === 'prop-2')?.capacity, 4)
+})
+
+test('updatePropertySpace supports add, edit, delete and reorder in one save', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+
+  await updatePropertySpace(asClient(fake), 'prop-1', {
+    minGuests: 1,
+    maxGuests: 4,
+    attributes: [
+      { label: 'Bedrooms', value: '1', icon: 'bed' },
+      { label: 'Bathrooms', value: '1', icon: 'bath' },
+      { label: 'Interior', value: '600 sqft', icon: 'interior' },
+    ],
+  })
+
+  const reordered = await updatePropertySpace(asClient(fake), 'prop-1', {
+    minGuests: 1,
+    maxGuests: 4,
+    attributes: [
+      { label: 'Interior', value: '600 sqft', icon: 'interior' },
+      { label: 'Bathrooms', value: '2', icon: 'bath' },
+    ],
+  })
+
+  // Interior moved first, Bathrooms edited 1 → 2, Bedrooms deleted.
+  assert.deepStrictEqual(
+    reordered.attributes.map((a) => `${a.label}=${a.value}`),
+    ['Interior=600 sqft', 'Bathrooms=2']
+  )
+  // sort values are dense and ordered so the public page keeps the same order.
+  assert.deepStrictEqual(reordered.attributes.map((a) => a.sort), [0, 1])
+})
+
+test('updatePropertySpace can clear every attribute but keeps the capacity range', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  await updatePropertySpace(asClient(fake), 'prop-1', {
+    minGuests: 2,
+    maxGuests: 8,
+    attributes: [{ label: 'Parking', value: '1 vehicle', icon: 'parking' }],
+  })
+
+  const cleared = await updatePropertySpace(asClient(fake), 'prop-1', {
+    minGuests: 2,
+    maxGuests: 8,
+    attributes: [],
+  })
+
+  assert.deepStrictEqual(cleared.attributes, [])
+  assert.equal(cleared.minGuests, 2)
+  assert.equal(cleared.maxGuests, 8)
+  assert.equal(fake.spaceAttributes.length, 0)
+})
+
+test('getPropertySpace returns per-attribute ids and preserves saved order', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  await updatePropertySpace(asClient(fake), 'prop-1', {
+    minGuests: 1,
+    maxGuests: 4,
+    attributes: [
+      { label: 'Floor', value: '3rd floor', icon: null },
+      { label: 'Parking', value: '1 vehicle', icon: 'parking' },
+    ],
+  })
+
+  const space = await getPropertySpace(asClient(fake), 'prop-1')
+  assert.equal(space.attributes.length, 2)
+  assert.deepStrictEqual(space.attributes.map((a) => a.label), ['Floor', 'Parking'])
+  assert.equal(space.attributes[0].icon, null)
+  assert.equal(space.attributes[1].icon, 'parking')
+  assert.ok(space.attributes.every((a) => a.id))
+})
+
+test('getPropertySpace and updatePropertySpace reject an unknown property', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  await assert.rejects(
+    () => getPropertySpace(asClient(fake), 'missing'),
+    (err: unknown) => err instanceof NotFoundError
+  )
+  await assert.rejects(
+    () => updatePropertySpace(asClient(fake), 'missing', { minGuests: 1, maxGuests: 2, attributes: [] }),
     (err: unknown) => err instanceof NotFoundError
   )
 })

@@ -11,6 +11,8 @@ import type {
   AdminProperty,
   AdminPropertyImage,
   AdminPropertyPayload,
+  AdminPropertySpace,
+  AdminPropertySpacePayload,
   BookingUpdatePayload,
 } from '@/types/admin'
 
@@ -158,6 +160,31 @@ export async function updateAdminProperty(id: string, payload: AdminPropertyPayl
     body: JSON.stringify(payload),
   })
   return body.property
+}
+
+// ── THE SPACE (properties) ──────────────────────────────────────────────────
+//
+// Each property owns its own capacity range + ordered attribute cards. Keys are
+// documented in `types/admin.ts`; the server validates everything in
+// `server/src/lib/spaceValidation.ts`.
+
+export async function fetchAdminPropertySpace(id: string): Promise<AdminPropertySpace> {
+  const body = await request<{ space: AdminPropertySpace }>(
+    `/properties/${encodeURIComponent(id)}/space`
+  )
+  return body.space
+}
+
+/** Full replace: add / edit / delete / reorder in a single save. */
+export async function updateAdminPropertySpace(
+  id: string,
+  payload: AdminPropertySpacePayload
+): Promise<AdminPropertySpace> {
+  const body = await request<{ space: AdminPropertySpace }>(
+    `/properties/${encodeURIComponent(id)}/space`,
+    { method: 'PUT', body: JSON.stringify(payload) }
+  )
+  return body.space
 }
 
 export async function deleteAdminProperty(id: string): Promise<{ ok: true }> {

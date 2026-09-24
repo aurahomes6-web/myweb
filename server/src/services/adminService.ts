@@ -5,6 +5,7 @@ import { maskAadhaar } from '../lib/bookingValidation.js'
 import type { CreateBookingInput, BookingGuestInput } from '../lib/bookingValidation.js'
 import type { AirbnbDetailsInput, AirbnbGuestInput } from '../lib/airbnbValidation.js'
 import type { PropertyUpdateInput } from '../lib/propertyValidation.js'
+import type { SpaceConfigInput } from '../lib/spaceValidation.js'
 import { collectConflicts, anyConflict, conflictMessage } from './overlapService.js'
 import { consumeCouponInTransaction } from './couponService.js'
 import { computeStayTotal } from './pricingService.js'
@@ -95,6 +96,14 @@ export interface AdminPropertyImageDto {
   alt: string
 }
 
+export interface AdminSpaceAttributeDto {
+  id: string
+  label: string
+  value: string
+  icon: string | null
+  sort: number
+}
+
 export interface AdminPropertyDto {
   id: string
   slug: string
@@ -103,6 +112,7 @@ export interface AdminPropertyDto {
   description: string
   shortDescription: string
   capacity: number
+  minGuests: number
   bedrooms: number
   beds: number | null
   bathrooms: number
@@ -114,6 +124,13 @@ export interface AdminPropertyDto {
   /** Nightly rate (excluding any promo offer), stored as integer paise. */
   pricePerNightPaise: number
   images: AdminPropertyImageDto[]
+  spaceAttributes: AdminSpaceAttributeDto[]
+}
+
+export interface AdminPropertySpaceDto {
+  minGuests: number
+  maxGuests: number
+  attributes: AdminSpaceAttributeDto[]
 }
 
 // ── row shapes (match each query's select/include) ─────────────────────────
@@ -202,13 +219,22 @@ const airbnbGuestInclude = {
 
 const propertyFieldSelect = {
   id: true, slug: true, name: true, shortLabel: true, description: true,
-  shortDescription: true, capacity: true, bedrooms: true, beds: true,
+  shortDescription: true, capacity: true, minGuests: true, bedrooms: true, beds: true,
   bathrooms: true, sqft: true, amenities: true, accent: true, visual: true,
   location: true, pricePerNightPaise: true,
   images: {
     orderBy: { sort: 'asc' as const },
     select: { id: true, kind: true, sort: true, url: true, alt: true },
   },
+  spaceAttributes: {
+    orderBy: { sort: 'asc' as const },
+    select: { id: true, label: true, value: true, icon: true, sort: true },
+  },
+} as const
+
+const spaceAttributeFieldSelect = {
+  orderBy: { sort: 'asc' as const },
+  select: { id: true, label: true, value: true, icon: true, sort: true },
 } as const
 
 // ── BOOKINGS ───────────────────────────────────────────────────────────────
@@ -672,7 +698,19 @@ export async function listProperties(client: PrismaClient): Promise<AdminPropert
     orderBy: { name: 'asc' },
     select: propertyFieldSelect,
   })
-  return properties.map((p) => ({ ...p, beds: p.beds ?? null }))
+  return properties.map(serializePropertyRow)
+}
+
+function serializeSpaceAttribute(
+  attr: { id: string; label: string; value: string; icon: string | null; sort: number }
+): AdminSpaceAttributeDto {
+  return {
+    id: attr.id,
+    label: attr.label,
+    value: attr.value,
+    icon: attr.icon ?? null,
+    sort: attr.sort,
+  }
 }
 
 function serializePropertyRow(p: Record<string, unknown>): AdminPropertyDto {
@@ -684,6 +722,7 @@ function serializePropertyRow(p: Record<string, unknown>): AdminPropertyDto {
     description: p.description as string,
     shortDescription: p.shortDescription as string,
     capacity: p.capacity as number,
+    minGuests: (p.minGuests as number | undefined) ?? 1,
     bedrooms: p.bedrooms as number,
     beds: (p.beds as number | null) ?? null,
     bathrooms: p.bathrooms as number,
@@ -700,6 +739,15 @@ function serializePropertyRow(p: Record<string, unknown>): AdminPropertyDto {
       url: img.url as string,
       alt: (img.alt as string | null) ?? '',
     })),
+    spaceAttributes: ((p.spaceAttributes as Array<Record<string, unknown>> | null) ?? []).map(
+      (attr) => serializeSpaceAttribute({
+        id: attr.id as string,
+        label: attr.label as string,
+        value: attr.value as string,
+        icon: (attr.icon as string | null) ?? null,
+        sort: attr.sort as number,
+      })
+    ),
   }
 }
 
@@ -732,6 +780,66 @@ export async function updateProperty(
     select: propertyFieldSelect,
   })
   return serializePropertyRow(updated)
+}
+
+// ── THE SPACE ───────────────────────────────────────────────────────────────
+
+export async function getPropertySpace(client: PrismaClient, id: string): Promise<AdminPropertySpaceDto> {
+  const property = await client.property.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      minGuests: true,
+      capacity: true,
+      spaceAttributes: spaceAttributeFieldSelect,
+    },
+  })
+  if (!property) throw new NotFoundError('Property not found.')
+  return {
+    minGuests: property.minGuests,
+    // Existing booking/availability features continue to read `capacity`; the
+    // admin-facing maximum for THE SPACE is kept in lock step with it.
+    maxGuests: property.capacity,
+    attributes: property.spaceAttributes.map(serializeSpaceAttribute),
+  }
+}
+
+/**
+ * Replace a property's whole THE SPACE configuration atomically.
+ *
+ * The payload is the full desired document (capacity range + ordered attribute
+ * list), so this supports add / edit / delete / reorder in one save: existing
+ * attribute rows are replaced by the new ordered set and `capacity` is synced
+ * to `maxGuests` so the booking/availability logic never drifts.
+ */
+export async function updatePropertySpace(
+  client: PrismaClient,
+  id: string,
+  input: SpaceConfigInput
+): Promise<AdminPropertySpaceDto> {
+  await client.$transaction(async (tx) => {
+    const property = await tx.property.findUnique({ where: { id }, select: { id: true } })
+    if (!property) throw new NotFoundError('Property not found.')
+
+    await tx.property.update({
+      where: { id },
+      data: { minGuests: input.minGuests, capacity: input.maxGuests },
+    })
+    await tx.propertySpaceAttribute.deleteMany({ where: { propertyId: id } })
+    if (input.attributes.length > 0) {
+      await tx.propertySpaceAttribute.createMany({
+        data: input.attributes.map((attribute, index) => ({
+          propertyId: id,
+          label: attribute.label,
+          value: attribute.value,
+          icon: attribute.icon,
+          sort: index,
+        })),
+      })
+    }
+  })
+
+  return getPropertySpace(client, id)
 }
 
 export async function deleteProperty(client: PrismaClient, id: string): Promise<{ deleted: true }> {

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express'
 import { PropertyImageKind } from '../generated/prisma/enums.js'
-import type { Property } from '../generated/prisma/client.js'
 import { prisma } from '../lib/db.js'
 
 export interface PublicPropertyImage {
@@ -19,6 +18,14 @@ interface PropertyImageRow {
   alt: string
 }
 
+export interface PublicSpaceAttribute {
+  id: string
+  label: string
+  value: string
+  icon: string | null
+  sort: number
+}
+
 export interface PublicProperty {
   id: string
   slug: string
@@ -27,6 +34,8 @@ export interface PublicProperty {
   description: string
   shortDescription: string
   capacity: number
+  minGuests: number
+  maxGuests: number
   bedrooms: number
   beds: number | null
   bathrooms: number
@@ -38,13 +47,36 @@ export interface PublicProperty {
   /** Nightly rate in integer paise (₹3,000 → 300000). */
   pricePerNightPaise: number
   images: PublicPropertyImage[]
+  spaceAttributes: PublicSpaceAttribute[]
 }
 
 function serializeImage(image: PropertyImageRow): PublicPropertyImage {
   return { id: image.id, kind: image.kind, sort: image.sort, url: image.url, alt: image.alt }
 }
 
-function serializeProperty(property: Property & { images?: PropertyImageRow[] }): PublicProperty {
+interface PropertyRow {
+  id: string
+  slug: string
+  name: string
+  shortLabel: string
+  description: string
+  shortDescription: string
+  capacity: number
+  minGuests: number
+  bedrooms: number
+  beds: number | null
+  bathrooms: number
+  sqft: number
+  amenities: string[]
+  accent: string
+  visual: string
+  location: string | null
+  pricePerNightPaise: number
+  images?: PropertyImageRow[]
+  spaceAttributes?: PublicSpaceAttribute[]
+}
+
+export function serializeProperty(property: PropertyRow): PublicProperty {
   return {
     id: property.id,
     slug: property.slug,
@@ -53,6 +85,8 @@ function serializeProperty(property: Property & { images?: PropertyImageRow[] })
     description: property.description,
     shortDescription: property.shortDescription,
     capacity: property.capacity,
+    minGuests: property.minGuests,
+    maxGuests: property.capacity,
     bedrooms: property.bedrooms,
     beds: property.beds,
     bathrooms: property.bathrooms,
@@ -63,11 +97,21 @@ function serializeProperty(property: Property & { images?: PropertyImageRow[] })
     location: property.location,
     pricePerNightPaise: property.pricePerNightPaise,
     images: (property.images ?? []).map(serializeImage),
+    spaceAttributes: (property.spaceAttributes ?? []).map((attr) => ({
+      id: attr.id,
+      label: attr.label,
+      value: attr.value,
+      icon: attr.icon ?? null,
+      sort: attr.sort,
+    })),
   }
 }
 
 const propertyInclude = {
   images: {
+    orderBy: { sort: 'asc' as const },
+  },
+  spaceAttributes: {
     orderBy: { sort: 'asc' as const },
   },
 } as const

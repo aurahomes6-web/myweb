@@ -8,6 +8,7 @@ import type {
   PropertyApiImage,
   PropertyImage,
   PropertySlug,
+  PropertySpaceAttribute,
   VisualKind,
 } from '@/types'
 
@@ -32,6 +33,8 @@ interface PublicPropertyApiItem {
   description: string
   shortDescription: string
   capacity: number
+  minGuests: number
+  maxGuests: number
   bedrooms: number
   beds: number | null
   bathrooms: number
@@ -44,6 +47,8 @@ interface PublicPropertyApiItem {
   pricePerNightPaise: number
   /** DB-backed images (Phase 5), shaped exactly like the public serializer. */
   images: PropertyApiImage[]
+  /** Admin-configured THE SPACE attribute cards, ordered by sort. */
+  spaceAttributes: PropertySpaceAttribute[]
 }
 
 function isAccent(value: string): value is AccentKind {
@@ -108,12 +113,15 @@ function toProperty(item: PublicPropertyApiItem): Property {
     accent,
     visual,
     capacity: item.capacity,
+    minGuests: item.minGuests,
+    maxGuests: item.maxGuests,
     bedrooms: item.bedrooms,
     beds: item.beds ?? undefined,
     bathrooms: item.bathrooms,
     sqft: item.sqft,
     amenities: item.amenities,
     location: item.location,
+    spaceAttributes: item.spaceAttributes ?? [],
   }
 }
 

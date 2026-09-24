@@ -27,6 +27,9 @@ export interface Property {
   accent: AccentKind
   visual: VisualKind
   capacity: number
+  /** Structured capacity range (THE SPACE). `maxGuests` mirrors `capacity`. */
+  minGuests: number
+  maxGuests: number
   bedrooms: number
   /** Physical bed count; only populated when the API provides it. */
   beds?: number
@@ -38,6 +41,8 @@ export interface Property {
   pricePerNightPaise: number
   /** DB-backed images (Phase 5). Falls back to `image`/`gallery` when empty. */
   images: PropertyApiImage[]
+  /** Admin-configured THE SPACE cards, ordered by `sort`. */
+  spaceAttributes: PropertySpaceAttribute[]
 }
 
 /** A photograph referenced by the database (admin-uploaded, Phase 5). */
@@ -47,6 +52,16 @@ export interface PropertyApiImage {
   sort: number
   url: string | null
   alt: string
+}
+
+/** One admin-configured “THE SPACE” card shown on the public property page. */
+export interface PropertySpaceAttribute {
+  id: string
+  label: string
+  value: string
+  /** Optional icon identifier; maps to a lucide icon on the public page. */
+  icon: string | null
+  sort: number
 }
 
 export interface BookingFormData {
