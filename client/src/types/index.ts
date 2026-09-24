@@ -122,6 +122,13 @@ export interface AppliedCoupon {
   discountPaise: number
 }
 
+/** Global AURA HOMES contact configuration shown in the public footer. */
+export interface ContactInfo {
+  email: string
+  phone: string
+  description: string
+}
+
 export type CouponValidationStatus = 'idle' | 'loading' | 'applied' | 'error'
 
 export interface BookingResponse {

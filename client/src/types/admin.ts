@@ -209,3 +209,10 @@ export interface AdminCleanupResult {
   deletedAirbnbGuests: number
   deletedBlockedDates: number
 }
+
+/** Global contact configuration editable from the Contact admin tab. */
+export interface AdminContactSettings {
+  email: string
+  phone: string
+  description: string
+}

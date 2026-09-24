@@ -8,6 +8,7 @@ import { validateAdminAirbnb } from '../lib/airbnbValidation.js'
 import { parsePropertyUpdate } from '../lib/propertyValidation.js'
 import { parseSpaceConfig } from '../lib/spaceValidation.js'
 import { parseCouponInput } from '../lib/couponValidation.js'
+import { parseContactSettings } from '../lib/contactValidation.js'
 import { BookingStatus } from '../generated/prisma/enums.js'
 import { uploadSingleImage, ImageTypeError } from '../lib/uploadImage.js'
 import { getObjectStorage } from '../storage/storage.js'
@@ -44,6 +45,7 @@ import {
   updateProperty,
   updatePropertySpace,
 } from '../services/adminService.js'
+import { getContactSettings, updateContactSettings } from '../services/contactService.js'
 
 /**
  * All routes reaching this controller are behind the authenticated admin
@@ -232,6 +234,20 @@ export const updatePropertySpaceHandler = wrap(async (req: Request, res: Respons
   if (!result.ok) return void validationError(res, result.issues)
   const space = await updatePropertySpace(prisma, id, result.value)
   res.json({ space })
+})
+
+// ── global contact settings ────────────────────────────────────────────────
+
+export const getContactSettingsHandler = wrap(async (_req: Request, res: Response) => {
+  const contact = await getContactSettings(prisma)
+  res.json({ contact })
+})
+
+export const updateContactSettingsHandler = wrap(async (req: Request, res: Response) => {
+  const result = parseContactSettings(req.body)
+  if (!result.ok) return void validationError(res, result.issues)
+  const contact = await updateContactSettings(prisma, result.value)
+  res.json({ contact })
 })
 
 // ── database cleanup ────────────────────────────────────────────────────────

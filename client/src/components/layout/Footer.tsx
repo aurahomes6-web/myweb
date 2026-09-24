@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { useContact } from '@/services/contact'
+import { mailtoHref, telHref } from '@/lib/contactFormat'
 
 const navigate = [
   { label: 'Home', to: '/' },
@@ -17,6 +19,7 @@ const explore = [
 
 export default function Footer() {
   const reduced = useReducedMotion()
+  const { contact } = useContact()
 
   return (
     <footer className="relative border-t border-surface-300/40 bg-surface-50/60">
@@ -84,16 +87,16 @@ export default function Footer() {
             </h4>
             <ul className="mt-5 space-y-3 text-sm text-text-muted">
               <li>
-                <a href="mailto:stay@aurahomes.com" className="link-underline hover:text-text-primary">
-                  stay@aurahomes.com
+                <a href={mailtoHref(contact.email)} className="link-underline hover:text-text-primary">
+                  {contact.email}
                 </a>
               </li>
               <li>
-                <a href="tel:+910000000000" className="link-underline hover:text-text-primary">
-                  +91 00000 00000
+                <a href={telHref(contact.phone)} className="link-underline hover:text-text-primary">
+                  {contact.phone}
                 </a>
               </li>
-              <li>Premium penthouse locations</li>
+              <li>{contact.description}</li>
             </ul>
           </div>
         </motion.div>

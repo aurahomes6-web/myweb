@@ -15,6 +15,7 @@ import {
   deletePropertyImageHandler,
   getAirbnbHandler,
   getBookingHandler,
+  getContactSettingsHandler,
   getPropertySpaceHandler,
   listAirbnbHandler,
   listBookingsHandler,
@@ -26,6 +27,7 @@ import {
   setCouponActiveHandler,
   updateAirbnbHandler,
   updateBookingHandler,
+  updateContactSettingsHandler,
   updatePropertyHandler,
   updatePropertySpaceHandler,
   uploadPropertyImageHandler,
@@ -82,6 +84,10 @@ router.get('/coupons', auth, listCouponsHandler)
 router.post('/coupons', requireCsrfHeader, auth, createCouponHandler)
 router.patch('/coupons/:id', requireCsrfHeader, auth, setCouponActiveHandler)
 router.delete('/coupons/:id', requireCsrfHeader, auth, deleteCouponHandler)
+
+// Global contact configuration (single-row singleton shown in the public footer).
+router.get('/contact', auth, getContactSettingsHandler)
+router.put('/contact', requireCsrfHeader, auth, updateContactSettingsHandler)
 
 // Destructive maintenance. Auth + CSRF + an explicit confirmation phrase are
 // all required before any data is removed. Properties are always preserved.

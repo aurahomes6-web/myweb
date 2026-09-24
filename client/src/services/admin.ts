@@ -5,6 +5,7 @@ import type {
   AdminApiErrorShape,
   AdminBooking,
   AdminCleanupResult,
+  AdminContactSettings,
   AdminCoupon,
   AdminCouponPayload,
   AdminImageSlot,
@@ -297,4 +298,21 @@ export function cleanupAdminBlockedDates(): Promise<AdminCleanupResult> {
 
 export function cleanupAdminAllData(): Promise<AdminCleanupResult> {
   return runCleanup('/cleanup/all', 'DELETE ALL')
+}
+
+// ── global contact settings ─────────────────────────────────────────────────
+
+export async function fetchAdminContactSettings(): Promise<AdminContactSettings> {
+  const body = await request<{ contact: AdminContactSettings }>('/contact')
+  return body.contact
+}
+
+export async function updateAdminContactSettings(
+  payload: AdminContactSettings
+): Promise<AdminContactSettings> {
+  const body = await request<{ contact: AdminContactSettings }>('/contact', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return body.contact
 }

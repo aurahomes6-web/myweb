@@ -197,6 +197,17 @@ model AirbnbGuest {
   @@index([reservationId])
 }
 
+/// Global AURA HOMES contact configuration shown in the public footer.
+/// A single singleton row (`id` = "single") — never per-property.
+model ContactSettings {
+  id          String   @id @default("single")
+  email       String
+  phone       String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
