@@ -52,7 +52,7 @@ export function PropertiesTab() {
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-magenta-bright">Properties</p>
         <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
-          HOME CATALOGUE
+          HOME SHOWCASE
         </h1>
         <p className="mt-2 max-w-xl text-sm text-text-muted">
           Changes here go live on the public site immediately. Photos are still managed in code.
