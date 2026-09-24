@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Users, BedDouble, Bath, Maximize, ArrowRight, MapPin } from 'lucide-react'
+import { Users, ArrowRight, MapPin, type LucideIcon } from 'lucide-react'
 import type { Property } from '@/types'
 import { accentPalettes } from '@/config/accents'
 import PropertyVisual from '@/components/visuals/PropertyVisual'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { formatINR } from '@/lib/money'
 import { cn } from '@/lib/cn'
+import { formatGuestCapacity } from '@/lib/space'
+import { spaceIconOrDefault } from '@/config/spaceIcons'
 
 interface PropertyCardProps {
   property: Property
@@ -17,12 +19,24 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
   const reduced = useReducedMotion()
   const accent = accentPalettes[property.accent]
 
-  const stats = [
-    { icon: Users, value: `${property.capacity} guests` },
-    { icon: BedDouble, value: `${property.bedrooms} bedroom` },
-    { icon: Bath, value: `${property.bathrooms} bath` },
-    { icon: Maximize, value: `${property.sqft} sqft` },
-  ]
+  const specs: Array<{ key: string; icon: LucideIcon; value: string }> = []
+  specs.push({
+    key: 'capacity',
+    icon: Users,
+    value: formatGuestCapacity(property.minGuests, property.maxGuests),
+  })
+  for (const attribute of property.spaceAttributes) {
+    const label = attribute.label.trim()
+    const value = attribute.value.trim()
+    if (!label || !value) continue
+    specs.push({
+      key: attribute.id,
+      icon: spaceIconOrDefault(attribute.icon),
+      value: `${label} ${value}`,
+    })
+  }
+
+  const visibleSpecs = specs.slice(0, 4)
 
   return (
     <motion.article
@@ -69,8 +83,8 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
         />
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          {stats.map(({ icon: Icon, value }) => (
-            <div key={value} className="flex items-center gap-2 text-[13px] text-text-muted">
+          {visibleSpecs.map(({ icon: Icon, value, key }) => (
+            <div key={key} className="flex items-center gap-2 text-[13px] text-text-muted">
               <Icon size={15} style={{ color: accent.main }} strokeWidth={2} />
               <span>{value}</span>
             </div>

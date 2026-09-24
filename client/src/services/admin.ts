@@ -10,6 +10,7 @@ import type {
   AdminCouponPayload,
   AdminImageSlot,
   AdminPayment,
+  AdminPaymentSettings,
   AdminProperty,
   AdminPropertyImage,
   AdminPropertyPayload,
@@ -346,6 +347,46 @@ export async function rejectAdminPayment(
     { method: 'POST', body: JSON.stringify({ rejectionMessage }) }
   )
   return body.payment
+}
+
+// ── Direct-UPI payment settings ─────────────────────────────────────────────
+//
+// Payee name/id/phone and the active QR asset shown on the customer payment
+// page. Text details are saved as JSON (PUT); the QR is a multipart image
+// upload (POST /qr) that the server persists to Vercel Blob and returns as a
+// public URL. Both use the same session cookie + CSRF header as every admin
+// mutation.
+
+export async function fetchAdminPaymentSettings(): Promise<AdminPaymentSettings> {
+  const body = await request<{ settings: AdminPaymentSettings }>('/payment-settings')
+  return body.settings
+}
+
+export async function updateAdminPaymentSettings(
+  payload: Pick<AdminPaymentSettings, 'upiName' | 'upiId' | 'upiPhone'>
+): Promise<AdminPaymentSettings> {
+  const body = await request<{ settings: AdminPaymentSettings }>('/payment-settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return body.settings
+}
+
+export async function uploadAdminPaymentQr(file: File): Promise<AdminPaymentSettings> {
+  const form = new FormData()
+  form.append('image', file)
+
+  const response = await fetch(`${ADMIN_ENDPOINT}/payment-settings/qr`, {
+    method: 'POST',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'include',
+    body: form,
+  })
+  const json: unknown = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw parseAdminError(json, 'The QR image could not be uploaded. Please try again.')
+  }
+  return (json as { settings: AdminPaymentSettings }).settings
 }
 
 // ── booking report download ──────────────────────────────────────────────────

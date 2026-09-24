@@ -1,21 +1,14 @@
 /**
- * Direct-UPI payment library for the AURA HOMES public site.
+ * Direct-UPI payment helpers for the AURA HOMES public site.
  *
- * The UPI details are intentionally static and public (they are printed on the
- * QR code), and UTR rules are mirrored from `server/src/lib/paymentValidation.ts`
- * so expectations fail fast client-side without trusting the client server-side.
+ * The current UPI details come from the payment settings API (admin-editable),
+ * so these helpers receive the active values as arguments instead of importing
+ * hard-coded constants. UTR rules are mirrored from
+ * `server/src/lib/paymentValidation.ts` so expectations fail fast client-side
+ * without trusting the client server-side.
  */
 
-export const UPI_ID = '9900662111@jupiteraxis'
-
-export const UPI_PHONE = '+91 9900662111'
-
-export const UPI_ACCOUNT = 'R BALAKUMARAN'
-
-/** Public QR asset served by the landing site. Never modify/recreate it. */
-export const UPI_QR_PATH = '/qr.jpeg'
-
-export const UPI_QR_DOWNLOAD_NAME = 'aura-homes-upi-qr.jpeg'
+import { UPI_QR_DOWNLOAD_NAME } from '@/lib/paymentSettingsFormat'
 
 /** Mirrors the server's normalizeUtr: strip whitespace, then uppercase. */
 export function normalizeUtr(value: string): string {
@@ -28,11 +21,12 @@ export function isValidUtr(value: string): boolean {
 }
 
 /**
- * Trigger a download of the QR code. Fetches the exact public asset so the
- * downloaded file always matches what is shown on screen.
+ * Trigger a download of the active QR. Fetches the exact public asset in use
+ * (the Blob URL returned by the API, or the static `/qr.jpeg` fallback while it
+ * is still active) so the downloaded file always matches what is on screen.
  */
-export async function downloadUpiQr(): Promise<void> {
-  const response = await fetch(UPI_QR_PATH)
+export async function downloadUpiQr(qrUrl: string): Promise<void> {
+  const response = await fetch(qrUrl)
   if (!response.ok) throw new Error('QR could not be downloaded.')
   const blob = await response.blob()
   const url = URL.createObjectURL(blob)
@@ -45,11 +39,11 @@ export async function downloadUpiQr(): Promise<void> {
   URL.revokeObjectURL(url)
 }
 
-/** Copy the UPI ID to the clipboard, falling back to textarea execCommand. */
-export async function copyUpiId(): Promise<boolean> {
+/** Copy the given UPI ID to the clipboard, falling back to textarea execCommand. */
+export async function copyUpiId(upiId: string): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(UPI_ID)
+      await navigator.clipboard.writeText(upiId)
       return true
     }
   } catch {
@@ -57,7 +51,7 @@ export async function copyUpiId(): Promise<boolean> {
   }
   try {
     const textarea = document.createElement('textarea')
-    textarea.value = UPI_ID
+    textarea.value = upiId
     textarea.style.position = 'fixed'
     textarea.style.opacity = '0'
     document.body.appendChild(textarea)

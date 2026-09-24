@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client.js'
+import { DEFAULT_CONTACT_SETTINGS } from '../src/services/contactService.js'
+import { DEFAULT_PAYMENT_SETTINGS } from '../src/services/paymentSettingsService.js'
 
 const databaseUrl =
   process.env.DATABASE_URL ?? process.env.DIRECT_URL
@@ -103,7 +105,38 @@ async function main() {
     })
   }
   const count = await prisma.property.count()
-  console.log(`Seeded ${count} properties.`)
+
+  // Singleton rows must exist before the first admin/public “settings” read so
+  // the UI always has a working value. `update: {}` keeps admin edits intact on
+  // re-seeds (only the missing row is ever created).
+  const paymentSettingsPromise = prisma.paymentSettings.upsert({
+    where: { id: 'single' },
+    update: {},
+    create: {
+      id: 'single',
+      upiName: DEFAULT_PAYMENT_SETTINGS.upiName,
+      upiId: DEFAULT_PAYMENT_SETTINGS.upiId,
+      upiPhone: DEFAULT_PAYMENT_SETTINGS.upiPhone,
+      // Intentionally empty — the public API falls back to `/qr.jpeg` until an
+      // admin uploads a durable QR. Keeps the migration QR working.
+      qrCodeUrl: '',
+    },
+  })
+
+  await prisma.$transaction([
+    prisma.contactSettings.upsert({
+      where: { id: 'single' },
+      update: {},
+      create: {
+        id: 'single',
+        email: DEFAULT_CONTACT_SETTINGS.email,
+        phone: DEFAULT_CONTACT_SETTINGS.phone,
+        description: DEFAULT_CONTACT_SETTINGS.description,
+      },
+    }),
+    paymentSettingsPromise,
+  ])
+  console.log(`Seeded ${count} properties + singleton settings rows.`)
 }
 
 main()

@@ -222,6 +222,21 @@ model ContactSettings {
   updatedAt   DateTime @updatedAt
 }
 
+/// Global Direct-UPI payment configuration shown on the customer payment page.
+/// A single singleton row (`id` = "single"). `qrCodeUrl` holds the active
+/// public QR asset (a Vercel Blob URL after the admin uploads one); while it is
+/// empty the public API falls back to the static `/qr.jpeg` asset so the
+/// payment page is never left with a broken/missing QR during migration.
+model PaymentSettings {
+  id        String   @id @default("single")
+  upiName   String
+  upiId     String
+  upiPhone  String
+  qrCodeUrl String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED

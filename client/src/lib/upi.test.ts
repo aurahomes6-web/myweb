@@ -1,25 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  copyUpiId,
-  downloadUpiQr,
-  isValidUtr,
-  normalizeUtr,
-  UPI_ACCOUNT,
-  UPI_ID,
-  UPI_PHONE,
-  UPI_QR_DOWNLOAD_NAME,
-  UPI_QR_PATH,
-} from './upi'
-
-describe('upi — public Direct UPI business constants', () => {
-  it('exposes the exact payee details shown in the UI and on the QR', () => {
-    expect(UPI_ID).toBe('9900662111@jupiteraxis')
-    expect(UPI_PHONE).toBe('+91 9900662111')
-    expect(UPI_ACCOUNT).toBe('R BALAKUMARAN')
-    expect(UPI_QR_PATH).toBe('/qr.jpeg')
-    expect(UPI_QR_DOWNLOAD_NAME).toBe('aura-homes-upi-qr.jpeg')
-  })
-})
+import { copyUpiId, downloadUpiQr, isValidUtr, normalizeUtr } from './upi'
+import { UPI_QR_DOWNLOAD_NAME } from './paymentSettingsFormat'
 
 describe('upi — normalizeUtr', () => {
   it('strips internal whitespace', () => {
@@ -74,7 +55,7 @@ describe('upi — downloadUpiQr', () => {
     vi.restoreAllMocks()
   })
 
-  it('downloads the public QR asset with the expected file name', async () => {
+  it('downloads the active (Blob) QR URL with the expected file name', async () => {
     const blob = new Blob(['fake-image'], { type: 'image/jpeg' })
     const objectUrl = 'blob:mock-qr'
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: async () => blob })
@@ -97,9 +78,9 @@ describe('upi — downloadUpiQr', () => {
       body: { appendChild: () => anchor },
     })
 
-    await downloadUpiQr()
+    await downloadUpiQr('https://blob.example/qr-1.jpg')
 
-    expect(fetchMock).toHaveBeenCalledWith('/qr.jpeg')
+    expect(fetchMock).toHaveBeenCalledWith('https://blob.example/qr-1.jpg')
     expect(anchor.href).toBe(objectUrl)
     expect(anchor.download).toBe(UPI_QR_DOWNLOAD_NAME)
     expect(clickMock).toHaveBeenCalledTimes(1)
@@ -107,11 +88,29 @@ describe('upi — downloadUpiQr', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith(objectUrl)
   })
 
+  it('downloads the static fallback asset when no Blob QR is set', async () => {
+    const blob = new Blob(['fake-image'], { type: 'image/jpeg' })
+    const objectUrl = 'blob:mock-qr'
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: async () => blob })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('URL', { createObjectURL: () => objectUrl, revokeObjectURL: vi.fn() })
+    vi.stubGlobal('document', {
+      createElement: () => ({ href: '', download: '', click: () => {}, remove: () => {} }),
+      body: { appendChild: () => undefined },
+    })
+
+    await downloadUpiQr('/qr.jpeg')
+
+    expect(fetchMock).toHaveBeenCalledWith('/qr.jpeg')
+  })
+
   it('throws when the QR asset cannot be fetched', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404 })
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(downloadUpiQr()).rejects.toThrow('QR could not be downloaded.')
+    await expect(downloadUpiQr('https://blob.example/missing.jpg')).rejects.toThrow(
+      'QR could not be downloaded.'
+    )
   })
 })
 
@@ -126,8 +125,8 @@ describe('upi — copyUpiId', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     vi.stubGlobal('window', { isSecureContext: true })
 
-    await expect(copyUpiId()).resolves.toBe(true)
-    expect(writeText).toHaveBeenCalledWith(UPI_ID)
+    await expect(copyUpiId('9900662111@jupiteraxis')).resolves.toBe(true)
+    expect(writeText).toHaveBeenCalledWith('9900662111@jupiteraxis')
   })
 
   it('falls back to the execCommand textarea path when the navigator API is unavailable', async () => {
@@ -146,9 +145,9 @@ describe('upi — copyUpiId', () => {
       execCommand,
     })
 
-    await expect(copyUpiId()).resolves.toBe(true)
+    await expect(copyUpiId('my-handle@mybank')).resolves.toBe(true)
     expect(execCommand).toHaveBeenCalledWith('copy')
-    expect(textarea.value).toBe(UPI_ID)
+    expect(textarea.value).toBe('my-handle@mybank')
   })
 
   it('reports failure when neither path can copy', async () => {
@@ -161,6 +160,6 @@ describe('upi — copyUpiId', () => {
       },
     })
 
-    await expect(copyUpiId()).resolves.toBe(false)
+    await expect(copyUpiId('my-handle@mybank')).resolves.toBe(false)
   })
 })

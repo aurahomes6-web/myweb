@@ -5,32 +5,18 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  Check,
-  Copy,
-  CreditCard,
-  Download,
-  Loader2,
   Lock,
-  Phone,
-  QrCode,
+  Loader2,
   ShieldCheck,
-  UserRound,
   Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatINR } from '@/lib/money'
 import { buildWhatsAppUrl } from '@/lib/whatsapp'
 import { BookingApiError, createBooking } from '@/services/bookings'
-import {
-  copyUpiId,
-  downloadUpiQr,
-  isValidUtr,
-  normalizeUtr,
-  UPI_ACCOUNT,
-  UPI_ID,
-  UPI_PHONE,
-  UPI_QR_PATH,
-} from '@/lib/upi'
+import { isValidUtr, normalizeUtr } from '@/lib/upi'
+import { usePaymentSettings } from '@/services/paymentSettings'
+import { PaymentDetails } from '@/components/booking/PaymentDetails'
 import type { AppliedCoupon, BookingFormData, BookingResponse } from '@/types'
 
 interface PaymentStepProps {
@@ -89,20 +75,16 @@ export default function PaymentStep({
   const [utrError, setUtrError] = useState<string | null>(null)
   const [banner, setBanner] = useState<SubmitBanner | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [copied, setCopied] = useState(false)
   // Synchronous lock: guards against a second submit before React re-renders
   // with the disabled state, so rapid double-clicks can never create a
   // duplicate booking.
   const submittingRef = useRef(false)
 
-  const hasDiscount = coupon && coupon.discountPaise > 0
+  // Active payee details (name/id/phone/QR) come from the payment-settings API
+  // — the site defaults render while they load, exactly as before.
+  const { settings } = usePaymentSettings()
 
-  async function handleCopy() {
-    const ok = await copyUpiId()
-    if (!ok) return
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 2200)
-  }
+  const hasDiscount = coupon && coupon.discountPaise > 0
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -212,80 +194,9 @@ export default function PaymentStep({
           </div>
         </div>
 
-        {/* QR + pay-by */}
-        <div className="card-surface flex flex-col rounded-panel p-6 sm:p-7">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple/30 to-magenta/20 text-purple-bright">
-              <QrCode size={17} />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-semibold text-text-primary">Pay via UPI</h3>
-              <p className="mt-1 text-sm leading-relaxed text-text-muted">
-                Scan this QR from any UPI app (GPay, PhonePe, Paytm, BHIM) and pay the
-                amount shown above.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:justify-center">
-            <div className="shrink-0 rounded-2xl border border-surface-300/60 bg-white p-4">
-              <img
-                src={UPI_QR_PATH}
-                alt="Aura Homes UPI QR code"
-                width={220}
-                height={220}
-                className="h-56 w-56 rounded-xl object-contain"
-              />
-            </div>
-
-            <div className="flex w-full max-w-sm flex-col gap-3">
-              <dl className="flex flex-col divide-y divide-surface-300/40">
-                <div className="flex items-center justify-between gap-3 py-3">
-                  <dt className="flex items-center gap-2 text-sm text-text-muted">
-                    <UserRound size={14} className="text-cyan-bright" /> Payable to
-                  </dt>
-                  <dd className="text-sm font-semibold text-text-primary">{UPI_ACCOUNT}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3 py-3">
-                  <dt className="flex items-center gap-2 text-sm text-text-muted">
-                    <Phone size={14} className="text-cyan-bright" /> Phone
-                  </dt>
-                  <dd className="font-mono text-sm font-semibold text-text-primary">{UPI_PHONE}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3 py-3">
-                  <dt className="flex items-center gap-2 text-sm text-text-muted">
-                    <CreditCard size={14} className="text-cyan-bright" /> UPI ID
-                  </dt>
-                  <dd className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-semibold text-text-primary">{UPI_ID}</span>
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-surface-300/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-text-secondary transition-colors hover:border-cyan/45 hover:text-cyan-bright"
-                    >
-                      {copied ? <Check size={11} className="text-cyan-bright" /> : <Copy size={11} />}
-                      {copied ? 'Copied' : 'Copy'}
-                    </button>
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => void downloadUpiQr()}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-surface-300/80 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-text-primary transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan/45 hover:shadow-glow-cyan"
-                >
-                  <Download size={14} className="text-cyan-bright" />
-                  Save QR image
-                </button>
-                <p className="text-center text-[11px] text-text-muted">
-                  Tip: save the QR to pay from another device, or copy the UPI ID above.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* QR + pay-by (dynamic). Renders the active settings from the API —
+            UPI name/id/phone and the QR asset (Blob URL or /qr.jpeg fallback). */}
+        <PaymentDetails settings={settings} />
 
         {/* UTR */}
         <div className="card-surface flex flex-col rounded-panel p-6 sm:p-7">

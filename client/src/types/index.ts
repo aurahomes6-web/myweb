@@ -142,6 +142,19 @@ export interface ContactInfo {
   description: string
 }
 
+/**
+ * Direct-UPI payment details fetched from GET /api/payment-settings and shown
+ * on the customer payment page (payee name, UPI id, phone and the active QR).
+ * Values are admin-editable; a fetch failure falls back to the site defaults so
+ * the page never renders blank.
+ */
+export interface PaymentSettingsInfo {
+  upiName: string
+  upiId: string
+  upiPhone: string
+  qrCodeUrl: string
+}
+
 export type CouponValidationStatus = 'idle' | 'loading' | 'applied' | 'error'
 
 export interface BookingResponse {

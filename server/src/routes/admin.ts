@@ -37,6 +37,11 @@ import {
   uploadPropertyImageHandler,
   uploadImageMiddleware,
 } from '../controllers/adminController.js'
+import {
+  adminGetPaymentSettingsHandler,
+  adminUpdatePaymentSettingsHandler,
+  adminUploadPaymentQrHandler,
+} from '../controllers/paymentSettingsController.js'
 
 const config = adminConfig(process.env)
 const auth = requireConfiguredAdmin(config)
@@ -104,6 +109,21 @@ router.get('/reports/bookings', auth, requireCsrfHeader, bookingsReportHandler)
 // Global contact configuration (single-row singleton shown in the public footer).
 router.get('/contact', auth, getContactSettingsHandler)
 router.put('/contact', requireCsrfHeader, auth, updateContactSettingsHandler)
+
+// Direct-UPI payment settings (payee name/id/phone + QR asset) editable from
+// the Admin panel. All three endpoints reuse the existing admin auth: reads
+// need a valid session; mutations additionally need the CSRF header. The QR
+// upload accepts an image (validated + size-capped by the shared multer
+// middleware) and persists it to the existing Vercel Blob store.
+router.get('/payment-settings', auth, adminGetPaymentSettingsHandler)
+router.put('/payment-settings', requireCsrfHeader, auth, adminUpdatePaymentSettingsHandler)
+router.post(
+  '/payment-settings/qr',
+  requireCsrfHeader,
+  auth,
+  uploadImageMiddleware,
+  adminUploadPaymentQrHandler
+)
 
 // Destructive maintenance. Auth + CSRF + an explicit confirmation phrase are
 // all required before any data is removed. Properties are always preserved.

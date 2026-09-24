@@ -224,6 +224,20 @@ export interface AdminContactSettings {
 }
 
 /**
+ * Direct-UPI payment settings editable from the Payment Settings admin tab.
+ * `qrCodeUrl` is the ACTIVE QR asset (a Vercel Blob URL once one is uploaded,
+ * otherwise the static `/qr.jpeg` fallback); `qrSource` tells the UI which of
+ * the two is currently in use.
+ */
+export interface AdminPaymentSettings {
+  upiName: string
+  upiId: string
+  upiPhone: string
+  qrCodeUrl: string
+  qrSource: 'blob' | 'fallback'
+}
+
+/**
  * A direct-UPI payment record as seen by the admin (server: paymentService DTO).
  * This is the ONLY place a guest's UTR is shown to staff — it is never
  * returned by any public API.
