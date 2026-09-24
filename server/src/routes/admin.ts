@@ -20,10 +20,14 @@ import {
   listAirbnbHandler,
   listBookingsHandler,
   listCouponsHandler,
+  listPaymentsHandler,
   listPropertiesHandler,
   login,
   logout,
   me,
+  bookingsReportHandler,
+  rejectPaymentHandler,
+  acceptPaymentHandler,
   setCouponActiveHandler,
   updateAirbnbHandler,
   updateBookingHandler,
@@ -84,6 +88,18 @@ router.get('/coupons', auth, listCouponsHandler)
 router.post('/coupons', requireCsrfHeader, auth, createCouponHandler)
 router.patch('/coupons/:id', requireCsrfHeader, auth, setCouponActiveHandler)
 router.delete('/coupons/:id', requireCsrfHeader, auth, deleteCouponHandler)
+
+// Direct-UPI payment review. Listing needs a session; accepting/rejecting
+// additionally requires the CSRF header.
+router.get('/payments', auth, listPaymentsHandler)
+router.post('/payments/:id/accept', requireCsrfHeader, auth, acceptPaymentHandler)
+router.post('/payments/:id/reject', requireCsrfHeader, auth, rejectPaymentHandler)
+
+// Booking report download. The action is read-only but streams admin data
+// (full Aadhaar), so it is gated behind the session AND the CSRF header so a
+// cross-origin top-level navigation can never silently download it. Auth runs
+// first so unauthenticated callers get 401 and only real admins hit CSRF.
+router.get('/reports/bookings', auth, requireCsrfHeader, bookingsReportHandler)
 
 // Global contact configuration (single-row singleton shown in the public footer).
 router.get('/contact', auth, getContactSettingsHandler)

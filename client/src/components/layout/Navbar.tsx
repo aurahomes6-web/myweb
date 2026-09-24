@@ -9,6 +9,7 @@ const navLinks = [
   { label: 'Home', to: '/' },
   { label: 'Properties', to: '/properties' },
   { label: 'Availability', to: '/book' },
+  { label: 'Track Booking', to: '/track' },
   { label: 'About', to: '/#about' },
 ]
 

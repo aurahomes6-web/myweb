@@ -1,4 +1,4 @@
-import type { BookingStatusValue, GuestGenderValue } from '@/types'
+import type { BookingStatusValue, GuestGenderValue, PaymentStatusValue } from '@/types'
 
 export type AirbnbStatusValue = 'ACTIVE' | 'CANCELLED'
 
@@ -78,6 +78,12 @@ export interface AdminBooking {
   primaryPhone: string
   notes: string | null
   status: BookingStatusValue
+  paymentStatus: PaymentStatusValue | null
+  utr: string | null
+  paymentSubmittedAt: string | null
+  paymentAcceptedAt: string | null
+  paymentRejectedAt: string | null
+  rejectionMessage: string | null
   createdAt: string
   updatedAt: string
   guests: AdminGuest[]
@@ -215,4 +221,31 @@ export interface AdminContactSettings {
   email: string
   phone: string
   description: string
+}
+
+/**
+ * A direct-UPI payment record as seen by the admin (server: paymentService DTO).
+ * This is the ONLY place a guest's UTR is shown to staff — it is never
+ * returned by any public API.
+ */
+export interface AdminPayment {
+  id: string
+  code: string
+  propertyId: string
+  property: AdminPropertyRef
+  checkIn: string
+  checkOut: string
+  nights: number
+  guestCount: number
+  primaryPhone: string
+  paymentStatus: PaymentStatusValue
+  utr: string | null
+  paymentSubmittedAt: string
+  paymentAcceptedAt: string | null
+  paymentRejectedAt: string | null
+  rejectionMessage: string | null
+  bookingStatus: BookingStatusValue
+  originalPricePaise: number | null
+  discountPaise: number | null
+  finalPricePaise: number | null
 }

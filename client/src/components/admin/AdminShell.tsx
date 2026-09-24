@@ -7,11 +7,13 @@ import { PropertiesTab } from '@/components/admin/PropertiesTab'
 import { CouponsTab } from '@/components/admin/CouponsTab'
 import { ContactTab } from '@/components/admin/ContactTab'
 import { CleanupTab } from '@/components/admin/CleanupTab'
+import { PaymentsTab } from '@/components/admin/PaymentsTab'
 import { adminLogout } from '@/services/admin'
 import { cn } from '@/lib/cn'
 
 const tabs = [
   { to: '/admin', label: 'Bookings', end: true },
+  { to: '/admin/payments', label: 'Payments', end: false },
   { to: '/admin/airbnb', label: 'Airbnb', end: false },
   { to: '/admin/properties', label: 'Properties', end: false },
   { to: '/admin/coupons', label: 'Coupons', end: false },
@@ -77,6 +79,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
         <Routes>
           <Route index element={<BookingsTab />} />
           <Route path="bookings" element={<BookingsTab />} />
+          <Route path="payments" element={<PaymentsTab />} />
           <Route path="airbnb" element={<AirbnbTab />} />
           <Route path="properties" element={<PropertiesTab />} />
           <Route path="coupons" element={<CouponsTab />} />

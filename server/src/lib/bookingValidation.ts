@@ -2,6 +2,7 @@ import { GuestGender } from '../generated/prisma/enums.js'
 import { validateRange } from './dateRange.js'
 import { normalizeCouponCode } from './couponValidation.js'
 import { asTrimmed, parsePositiveInt } from './validation.js'
+import { normalizeUtr } from './paymentValidation.js'
 
 /**
  * Booking-payload validation for Phase 5. Every check here is mirrored by the
@@ -43,6 +44,12 @@ export interface CreateBookingInput {
   notes?: string
   /** Optional referral/offer code. Server validates + applies the discount. */
   couponCode?: string
+  /**
+   * UPI transaction reference for the direct-UPI payment flow. Optional here
+   * (normalized when present) because admin updates reuse this validator; the
+   * public create handler enforces it as required.
+   */
+  utr?: string
 }
 
 export type BookingInputResult =
@@ -175,6 +182,12 @@ export function validateCreateBooking(body: unknown): BookingInputResult {
     issues.push({ field: 'couponCode', message: 'Coupon code looks invalid.' })
   }
 
+  const utrProvided = body.utr !== undefined && body.utr !== null && body.utr !== ''
+  const utr = utrProvided ? normalizeUtr(body.utr) : undefined
+  if (utrProvided && utr === null) {
+    issues.push({ field: 'utr', message: 'UTR should only contain letters, numbers and spaces.' })
+  }
+
   if (!propertyId) {
     issues.push({ field: 'propertyId', message: 'propertyId is required.' })
   }
@@ -253,6 +266,7 @@ export function validateCreateBooking(body: unknown): BookingInputResult {
       guests,
       notes: notes ?? undefined,
       couponCode: couponCode ?? undefined,
+      utr: utr ?? undefined,
     },
   }
 }

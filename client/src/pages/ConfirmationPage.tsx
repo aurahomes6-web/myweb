@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CalendarX2,
   CheckCircle2,
+  Clock,
   MessageCircle,
   Phone,
   QrCode,
@@ -20,6 +21,16 @@ import { buildWhatsAppMessage, buildWhatsAppUrl, GENDER_LABEL } from '@/lib/what
 import { fetchBooking } from '@/services/bookings'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { BookingResponse } from '@/types'
+
+/** A booking cancelled because its UPI payment was declined by the admin. */
+function isRejectedBooking(booking: BookingResponse): boolean {
+  return booking.status === 'CANCELLED' && booking.paymentStatus === 'REJECTED'
+}
+
+/** A confirmed booking whose UPI payment is still awaiting verification. */
+function isPendingPayment(booking: BookingResponse): boolean {
+  return booking.status === 'CONFIRMED' && booking.paymentStatus === 'PENDING'
+}
 
 /**
  * WhatsApp click-to-chat step (Phase 6).
@@ -63,7 +74,13 @@ function WhatsAppStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, [])
 
-  const sent = notif?.sent === true
+  // `serverSent` is the server-reported delivery flag — it is always false in
+  // this project because no WhatsApp provider is wired up (the server never
+  // claims a send). The client-side wa.me open is the only thing the app can
+  // actually verify, so a successful open counts as "opened" here.
+  const serverSent = notif?.sent === true
+  const opened = whatsAppOpened === true
+  const shared = serverSent || opened
 
   return (
     <div className="card-surface rounded-panel p-6 sm:p-7">
@@ -76,8 +93,10 @@ function WhatsAppStep({
             Send booking details on WhatsApp
           </h2>
           <p className="text-xs text-text-muted">
-            {sent
-              ? 'Delivered by the server'
+            {shared
+              ? serverSent
+                ? 'Delivered by the server'
+                : 'Opened on your device'
               : 'One last step — share your booking with Aura Homes'}
           </p>
         </div>
@@ -85,58 +104,72 @@ function WhatsAppStep({
           <span
             className={cn(
               'ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]',
-              sent ? 'bg-cyan/15 text-cyan-bright' : 'bg-surface-300/40 text-text-muted'
+              shared ? 'bg-cyan/15 text-cyan-bright' : 'bg-surface-300/40 text-text-muted'
             )}
           >
-            {sent ? 'Sent' : 'Not sent'}
+            {shared ? (serverSent ? 'Sent' : 'Opened') : 'Not sent'}
           </span>
         )}
       </div>
 
-      {sent ? (
+      {shared ? (
         <p className="mt-4 text-sm text-text-secondary">
-          Your booking summary was delivered to WhatsApp. No further action is needed.
+          {serverSent
+            ? 'Your booking summary was delivered to WhatsApp. No further action is needed.'
+            : 'WhatsApp was opened with your booking summary. If it did not go through, use the button below to share it again.'}
         </p>
       ) : (
         <>
           <p className="mt-4 text-sm text-text-secondary">
-            Your booking is already confirmed in our system. Open WhatsApp and tap
-            <span className="font-semibold text-text-primary"> Send </span>
-            to share this summary with Aura Homes.
+            {isPendingPayment(booking)
+              ? 'Your booking and payment are awaiting verification — sharing the summary on WhatsApp helps our team confirm it faster.'
+              : isRejectedBooking(booking)
+                ? 'Your payment could not be verified. Sharing this summary on WhatsApp connects you directly with our team.'
+                : 'Your booking is already confirmed in our system. Open WhatsApp and tap'}
+            {!isPendingPayment(booking) && !isRejectedBooking(booking) && (
+              <>
+                {' '}
+                <span className="font-semibold text-text-primary"> Send </span>
+                {' '}
+                to share this summary with Aura Homes.
+              </>
+            )}
           </p>
 
           <pre className="mt-5 overflow-x-auto rounded-2xl border border-surface-300/50 bg-surface-100/40 p-5 font-mono text-xs leading-relaxed text-text-secondary">
             {booking.whatsAppMessage ?? buildWhatsAppMessage(booking)}
           </pre>
-
-          {waUrl ? (
-            <a
-              href={waUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-7 py-3.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
-            >
-              <Send size={14} /> Open WhatsApp
-            </a>
-          ) : notif?.recipient ? (
-            <p className="mt-5 text-xs leading-relaxed text-text-muted">
-              The WhatsApp share link is only available right after completing
-              your booking. Your reservation is confirmed — call us if you need
-              to share your details again.
-            </p>
-          ) : (
-            <p className="mt-5 text-xs leading-relaxed text-text-muted">
-              WhatsApp is not configured for this booking yet. Your reservation is
-              confirmed and you can reach Aura Homes on the phone instead.
-            </p>
-          )}
-
-          <p className="mt-4 text-[11px] leading-relaxed text-text-muted">
-            Open WhatsApp and press Send to share this booking with Aura Homes.
-            Aadhaar numbers are included only in this message you send — they are
-            never shown publicly on this page.
-          </p>
         </>
+      )}
+
+      {!serverSent && waUrl ? (
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left px-7 py-3.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta"
+        >
+          <Send size={14} /> Open WhatsApp
+        </a>
+      ) : !serverSent && notif?.recipient ? (
+        <p className="mt-5 text-xs leading-relaxed text-text-muted">
+          The WhatsApp share link is only available right after completing
+          your booking. Your booking is on file — call us if you need to share
+          your details again.
+        </p>
+      ) : !serverSent ? (
+        <p className="mt-5 text-xs leading-relaxed text-text-muted">
+          WhatsApp is not configured for this booking yet. Reach Aura Homes on
+          the phone and our team will assist you.
+        </p>
+      ) : null}
+
+      {!shared && (
+        <p className="mt-4 text-[11px] leading-relaxed text-text-muted">
+          Open WhatsApp and press Send to share this booking with Aura Homes.
+          Aadhaar numbers are included only in this message you send — they are
+          never shown publicly on this page.
+        </p>
       )}
     </div>
   )
@@ -157,16 +190,28 @@ export default function ConfirmationPage() {
   const [ticketOpen, setTicketOpen] = useState(false)
 
   useEffect(() => {
-    if (stateBooking || !reference) return
+    // Always re-sync with the backend: it is the source of truth for status.
+    // `location.state.booking` was captured at submission time and can be stale
+    // (e.g. still PENDING after an admin already accepted the payment), so we
+    // re-fetch by code and overlay the fresh fields while keeping the
+    // create-time WhatsApp pre-fill message, which the public lookup omits.
+    const refCode = stateBooking?.code ?? reference
+    if (!refCode) return
     let cancelled = false
-    fetchBooking(reference)
+    fetchBooking(refCode)
       .then((result) => {
         if (cancelled) return
-        setBooking(result)
+        setBooking((prev) => ({
+          ...(prev ?? result),
+          ...result,
+          whatsAppMessage: prev?.whatsAppMessage,
+        }))
         setStatus('ready')
       })
       .catch(() => {
-        if (!cancelled) setStatus('error')
+        // Without any initial data there is nothing to show, so surface the
+        // lookup error. With state data in memory we keep rendering it.
+        if (!cancelled && !stateBooking) setStatus('error')
       })
     return () => {
       cancelled = true
@@ -227,12 +272,61 @@ export default function ConfirmationPage() {
               Aura Homes
             </p>
             <h1 className="relative mt-3 font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
-              BOOKING <span className="text-gradient">CONFIRMED</span>
+              {isRejectedBooking(booking) ? (
+                <>
+                  BOOKING <span className="text-gradient">REJECTED</span>
+                </>
+              ) : booking.status === 'CANCELLED' ? (
+                <>
+                  BOOKING <span className="text-gradient">CANCELLED</span>
+                </>
+              ) : isPendingPayment(booking) ? (
+                <>
+                  BOOKING <span className="text-gradient">RECEIVED</span>
+                </>
+              ) : (
+                <>
+                  BOOKING <span className="text-gradient">CONFIRMED</span>
+                </>
+              )}
             </h1>
             <p className="relative mt-4 text-sm leading-relaxed text-text-muted">
-              Your stay at {booking.property.name} is reserved. Keep your Booking ID
-              handy for check-in.
+              {isRejectedBooking(booking) ? (
+                <>
+                  We're sorry — your payment for the stay at {booking.property.name} could
+                  not be verified. Please contact us if you have any questions.
+                </>
+              ) : booking.status === 'CANCELLED' ? (
+                <>
+                  We're sorry — your booking at {booking.property.name} could not be
+                  completed. Please contact us for any questions.
+                </>
+              ) : isPendingPayment(booking) ? (
+                <>
+                  Your stay at {booking.property.name} is on hold while we verify your
+                  UPI payment. Keep your Booking ID handy for check-in.
+                </>
+              ) : (
+                <>
+                  Your stay at {booking.property.name} is reserved. Keep your Booking ID
+                  handy for check-in.
+                </>
+              )}
             </p>
+
+            {booking.paymentStatus && booking.paymentStatus !== 'ACCEPTED' && (
+              <div className="relative mx-auto mt-6 inline-flex items-center gap-2 rounded-full border border-amber/40 bg-amber/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-bright">
+                {booking.paymentStatus === 'REJECTED'
+                  ? 'Payment declined — booking cancelled'
+                  : 'Payment verification pending'}
+              </div>
+            )}
+
+            {booking.status === 'CONFIRMED' && booking.paymentStatus === 'ACCEPTED' && (
+              <div className="relative mx-auto mt-6 inline-flex items-center gap-2 rounded-full border border-cyan/40 bg-cyan/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-bright">
+                Payment verified — confirmed
+              </div>
+            )}
 
             <div className="relative mx-auto mt-7 inline-flex items-center gap-3 rounded-full border border-surface-300/60 bg-surface-100/50 px-6 py-3">
               <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-text-muted">
@@ -249,12 +343,29 @@ export default function ConfirmationPage() {
               </span>
               <div>
                 <p className="text-xs leading-relaxed text-text-secondary">
-                  Please make sure your booking details are sent to our WhatsApp so
-                  our team can process your reservation.
+                  {isPendingPayment(booking) ? (
+                    <>
+                      Share your booking on WhatsApp so our team can verify your UPI
+                      payment and confirm your stay faster.
+                    </>
+                  ) : isRejectedBooking(booking) ? (
+                    <>
+                      Your payment could not be verified. Contact us — your booking has
+                      been cancelled and your dates released.
+                    </>
+                  ) : (
+                    <>
+                      Please make sure your booking details are sent to our WhatsApp so
+                      our team can process your reservation.
+                    </>
+                  )}
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-text-muted">
-                  Your stay is already reserved — sending WhatsApp only helps us
-                  prepare your check-in.
+                  {isPendingPayment(booking)
+                    ? 'Your dates are held — we just need to confirm your transfer.'
+                    : isRejectedBooking(booking)
+                      ? 'If this is a mistake, please reach out and we will look into it.'
+                      : 'Your stay is already reserved — sending WhatsApp only helps us prepare your check-in.'}
                 </p>
               </div>
             </div>
@@ -273,8 +384,33 @@ export default function ConfirmationPage() {
                   <p className="text-xs text-text-muted">{booking.property.shortLabel}</p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-bright">
-                <CheckCircle2 size={12} /> Confirmed
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]',
+                  booking.status === 'CANCELLED'
+                    ? 'bg-magenta/15 text-magenta-bright'
+                    : booking.paymentStatus === 'PENDING'
+                      ? 'bg-amber/15 text-amber-bright'
+                      : 'bg-cyan/15 text-cyan-bright'
+                )}
+              >
+                {isRejectedBooking(booking) ? (
+                  <>
+                    <CalendarX2 size={12} /> Rejected
+                  </>
+                ) : booking.status === 'CANCELLED' ? (
+                  <>
+                    <CalendarX2 size={12} /> Cancelled
+                  </>
+                ) : isPendingPayment(booking) ? (
+                  <>
+                    <Clock size={12} /> Awaiting payment verification
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={12} /> Confirmed
+                  </>
+                )}
               </span>
             </div>
 
@@ -319,6 +455,18 @@ export default function ConfirmationPage() {
             autoOpen={(location.state as { autoWhatsApp?: boolean } | null)?.autoWhatsApp === true}
             whatsAppOpened={(location.state as { whatsAppOpened?: boolean } | null)?.whatsAppOpened === true}
           />
+
+          {booking.status === 'CANCELLED' && booking.rejectionMessage && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-magenta/50 bg-magenta/10 p-5 text-sm leading-relaxed text-text-secondary"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-magenta-bright">
+                Reason
+              </p>
+              <p className="mt-1.5">{booking.rejectionMessage}</p>
+            </div>
+          )}
 
           <button
             type="button"

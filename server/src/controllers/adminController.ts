@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import multer from 'multer'
+import type { PrismaClient } from '../generated/prisma/client.js'
 import type { AdminConfig } from '../lib/adminAuth.js'
 import { ADMIN_COOKIE_NAME, checkAdminCredentials, clearSessionCookie, issueSession, sessionCookie } from '../lib/adminAuth.js'
 import { prisma } from '../lib/db.js'
@@ -10,6 +11,7 @@ import { parseSpaceConfig } from '../lib/spaceValidation.js'
 import { parseCouponInput } from '../lib/couponValidation.js'
 import { parseContactSettings } from '../lib/contactValidation.js'
 import { BookingStatus } from '../generated/prisma/enums.js'
+import { parseRejectionMessage } from '../lib/paymentValidation.js'
 import { uploadSingleImage, ImageTypeError } from '../lib/uploadImage.js'
 import { getObjectStorage } from '../storage/storage.js'
 import { uploadPropertyImage, deletePropertyImage, parseImageSlot } from '../services/imageService.js'
@@ -46,6 +48,14 @@ import {
   updatePropertySpace,
 } from '../services/adminService.js'
 import { getContactSettings, updateContactSettings } from '../services/contactService.js'
+import { acceptPayment, listPayments, rejectPayment } from '../services/paymentService.js'
+import { parseReportRange } from '../lib/bookingReportValidation.js'
+import {
+  bookingsReportFileName,
+  buildBookingsReportWorkbook,
+  countBookingsInRange,
+  listBookingsForReport,
+} from '../services/bookingReportService.js'
 
 /**
  * All routes reaching this controller are behind the authenticated admin
@@ -323,6 +333,72 @@ export const deleteCouponHandler = wrap(async (req: Request, res: Response) => {
   const result = await deleteCoupon(prisma, id)
   res.json(result)
 })
+
+// ── UPI payments ────────────────────────────────────────────────────────────
+
+export const listPaymentsHandler = wrap(async (_req: Request, res: Response) => {
+  const payments = await listPayments(prisma)
+  res.json({ payments })
+})
+
+export const acceptPaymentHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const payment = await acceptPayment(prisma, id)
+  res.json({ payment })
+})
+
+export const rejectPaymentHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const rawMessage = body.rejectionMessage
+  const hasMessage = rawMessage !== undefined && rawMessage !== null && rawMessage !== ''
+  const message = hasMessage ? parseRejectionMessage(rawMessage) : null
+  if (hasMessage && message === null) {
+    return void validationError(res, [
+      { field: 'rejectionMessage', message: 'Rejection message must be 500 characters or fewer.' },
+    ])
+  }
+  const payment = await rejectPayment(prisma, id, message)
+  res.json({ payment })
+})
+
+// ── booking report (XLSX download) ───────────────────────────────────────────
+
+const REPORT_XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+/**
+ * Streams an .xlsx of NORMAL bookings (and their guests) created in the range
+ * `from`/`to`. Requires a valid admin session AND the CSRF header at the route
+ * layer. An empty period returns a JSON marker instead of an empty file, so the
+ * client can surface "No bookings found" rather than downloading garbage.
+ *
+ * The optional `client` argument lets tests inject a fake Prisma client; the
+ * production route uses the shared singleton.
+ */
+export function makeBookingsReportHandler(client?: PrismaClient) {
+  return wrap(async (req: Request, res: Response) => {
+    const parsed = parseReportRange(req.query.from, req.query.to)
+    if (!parsed.ok) return void validationError(res, parsed.issues)
+
+    const db = client ?? prisma
+    const count = await countBookingsInRange(db, parsed.value)
+    if (count === 0) {
+      return res.json({ empty: true, message: 'No bookings found for the selected period.' })
+    }
+
+    const bookings = await listBookingsForReport(db, parsed.value)
+    const buffer = await buildBookingsReportWorkbook(bookings)
+    res.setHeader('Content-Type', REPORT_XLSX_CONTENT_TYPE)
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${bookingsReportFileName(parsed.value.from, parsed.value.to)}"`
+    )
+    res.setHeader('Content-Length', String(buffer.length))
+    res.end(buffer)
+  })
+}
+
+export const bookingsReportHandler = makeBookingsReportHandler()
 
 // ── property photos ───────────────────────────────────────────────────────
 

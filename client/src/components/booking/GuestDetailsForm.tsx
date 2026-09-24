@@ -1,35 +1,31 @@
-import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import {
   AlertCircle,
+  ArrowRight,
   BadgeCheck,
   ChevronDown,
   Fingerprint,
-  Loader2,
   Lock,
   Phone,
   ShieldCheck,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import type {
-  BookingFormData,
-  BookingResponse,
-  GuestGenderValue,
-  Property,
-} from '@/types'
-import { BookingApiError, createBooking } from '@/services/bookings'
+import type { BookingFormData, GuestGenderValue } from '@/types'
 import { GENDER_OPTIONS } from '@/lib/gender'
-import { buildWhatsAppUrl } from '@/lib/whatsapp'
 
 interface GuestDetailsFormProps {
-  property: Property
+  /** Property slug sent as `propertyId` in the booking payload. */
+  propertyId: string
+  /** Hides the step while keeping its state alive for the booking wizard. */
+  hidden?: boolean
   checkIn: string
   checkOut: string
   guestCount: number
   /** Validated coupon code to attach to the booking. Sent verbatim; the server applies it. */
   couponCode?: string
-  onSuccess: (booking: BookingResponse, whatsAppOpened?: boolean) => void
+  /** Hands a fully-validated payload up to the booking wizard (payment step). */
+  onProceed: (payload: BookingFormData) => void
 }
 
 interface GuestRow {
@@ -37,11 +33,6 @@ interface GuestRow {
   aadhaar: string
   gender: '' | GuestGenderValue
   age: string
-}
-
-interface SubmitBanner {
-  kind: 'unavailable' | 'notfound' | 'validation' | 'server' | 'network'
-  message: string
 }
 
 const INITIAL_ROW: GuestRow = { fullName: '', aadhaar: '', gender: '', age: '' }
@@ -78,24 +69,19 @@ function isIndianPhone(value: string): boolean {
 }
 
 export default function GuestDetailsForm({
-  property,
+  propertyId,
+  hidden = false,
   checkIn,
   checkOut,
   guestCount,
   couponCode,
-  onSuccess,
+  onProceed,
 }: GuestDetailsFormProps) {
   const [primaryPhone, setPrimaryPhone] = useState('')
   const [rows, setRows] = useState<GuestRow[]>(() =>
     Array.from({ length: guestCount }, () => ({ ...INITIAL_ROW }))
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [banner, setBanner] = useState<SubmitBanner | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  // Synchronous lock: guards against a second submit before React re-renders
-  // with the disabled state, so rapid double-clicks can never create a
-  // duplicate booking.
-  const submittingRef = useRef(false)
 
   function updateRow(index: number, patch: Partial<GuestRow>) {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
@@ -191,25 +177,19 @@ export default function GuestDetailsForm({
     return next
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (submitting || submittingRef.current) return
-    submittingRef.current = true
 
     const nextErrors = validate()
     setErrors(nextErrors)
-    setBanner(null)
 
     if (Object.keys(nextErrors).length > 0) {
-      // Release the synchronous lock: a failed validation must not freeze the
-      // submit button for every later attempt.
-      submittingRef.current = false
       document.getElementById('guest-details')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
 
     const payload: BookingFormData = {
-      propertyId: property.slug,
+      propertyId,
       checkIn,
       checkOut,
       guestCount,
@@ -223,74 +203,11 @@ export default function GuestDetailsForm({
       couponCode: couponCode && couponCode.trim() ? couponCode.trim() : undefined,
     }
 
-    // Browser-safe WhatsApp: reserve the target tab synchronously while the
-    // submit click is still in the user activation (window.open after an
-    // await/navigation is silently blocked), then point it at the wa.me link
-    // once the booking exists. Closed again if the request fails or WhatsApp
-    // is not configured. The prefilled message (`booking.whatsAppMessage`)
-    // carries each guest's full Aadhaar for this documentary send — it never
-    // touches the booking ID, path, query params, storage or logs.
-    let whatsAppPopup: Window | null = null
-    try {
-      whatsAppPopup = window.open('', '_blank')
-    } catch {
-      whatsAppPopup = null
-    }
-
-    setSubmitting(true)
-    try {
-      const booking = await createBooking(payload)
-      let whatsAppOpened = false
-      const waUrl = buildWhatsAppUrl(booking)
-      if (whatsAppPopup && !whatsAppPopup.closed) {
-        if (waUrl) {
-          whatsAppPopup.location.href = waUrl
-          whatsAppOpened = true
-        } else {
-          whatsAppPopup.close()
-        }
-      }
-      onSuccess(booking, whatsAppOpened)
-    } catch (error) {
-      if (whatsAppPopup && !whatsAppPopup.closed) whatsAppPopup.close()
-      setSubmitting(false)
-      submittingRef.current = false
-      if (error instanceof BookingApiError) {
-        if (error.code === 'PROPERTY_UNAVAILABLE') {
-          setBanner({ kind: 'unavailable', message: error.message })
-        } else if (error.code === 'PROPERTY_NOT_FOUND') {
-          setBanner({ kind: 'notfound', message: error.message })
-        } else if (error.code === 'VALIDATION_ERROR') {
-          setBanner({ kind: 'validation', message: error.message })
-          const merged = { ...nextErrors }
-          for (const detail of error.details ?? []) {
-            const m = detail.field.match(/^guests\[(\d+)\]\.(.+)$/)
-            if (m) merged[`g${m[1]}.${m[2]}`] = detail.message
-            else merged[detail.field] = detail.message
-          }
-          setErrors(merged)
-        } else {
-          setBanner({ kind: 'server', message: error.message })
-        }
-      } else {
-        setBanner({
-          kind: 'network',
-          message: 'We could not reach our server. Check your connection and try again.',
-        })
-      }
-    }
-  }
-
-  const bannerCopy: Record<SubmitBanner['kind'], string> = {
-    unavailable: 'Choose different dates',
-    notfound: 'Go back',
-    validation: 'Fix the highlighted fields',
-    server: 'Try again',
-    network: 'Try again',
+    onProceed(payload)
   }
 
   return (
-    <section id="guest-details" aria-labelledby="guest-details-heading">
+    <section id="guest-details" aria-labelledby="guest-details-heading" hidden={hidden}>
       <h2 id="guest-details-heading" className="sr-only">
         Guest registration
       </h2>
@@ -360,7 +277,6 @@ export default function GuestDetailsForm({
               <fieldset
                 key={index}
                 className="rounded-2xl border border-surface-300/50 bg-surface-100/40 p-4 sm:p-5"
-                disabled={submitting}
               >
                 <legend className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">
                   Guest {index + 1}
@@ -485,60 +401,21 @@ export default function GuestDetailsForm({
           </div>
         </div>
 
-        {banner && (
-          <div
-            role="alert"
-            className={cn(
-              'flex flex-col gap-3 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between',
-              banner.kind === 'unavailable'
-                ? 'border-magenta/50 bg-magenta/10'
-                : 'border-surface-300/50 bg-surface-100/50'
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <AlertCircle
-                size={18}
-                className={cn(
-                  'mt-0.5 shrink-0',
-                  banner.kind === 'unavailable' ? 'text-magenta-bright' : 'text-text-muted'
-                )}
-              />
-              <p className="text-sm leading-relaxed text-text-secondary">{banner.message}</p>
-            </div>
-            {banner.kind === 'unavailable' ? (
-              <Link
-                to={`/properties/${property.slug}#availability`}
-                className="shrink-0 rounded-full border border-magenta/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-magenta-bright transition-colors hover:bg-magenta/10"
-              >
-                {bannerCopy[banner.kind]}
-              </Link>
-            ) : (
-              <span className="sr-only">{bannerCopy[banner.kind]}</span>
-            )}
-          </div>
-        )}
-
         <button
           type="submit"
-          disabled={submitting}
-          className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-bright focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-glow-purple"
+          className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink shadow-glow-purple transition-all duration-300 hover:bg-right hover:shadow-glow-magenta focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-bright focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
-          {submitting ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Confirming your stay…
-            </>
-          ) : (
-            <>
-              <BadgeCheck size={16} />
-              Confirm booking
-            </>
-          )}
+          Continue to payment
+          <ArrowRight
+            size={16}
+            className="transition-transform duration-300 group-hover:translate-x-1"
+          />
         </button>
 
         <p className="text-center text-xs leading-relaxed text-text-muted">
-          By confirming, you agree to stay-at-home validation of guest identity at
-          check-in. The lead guest receives the official confirmation by WhatsApp.
+          Next you will pay by UPI and share your transaction reference (UTR) to
+          lock in your stay. Guest identity is verified at check-in, and the lead
+          guest receives the official confirmation by WhatsApp.
         </p>
       </form>
     </section>

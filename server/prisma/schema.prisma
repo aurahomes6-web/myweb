@@ -76,14 +76,28 @@ model Booking {
   couponId           String?
   /// Denormalized coupon code snapshot so history/WhatsApp never depend on the coupon row surviving.
   couponCode         String?
-  property           Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  guestRecords       Guest[]
-  coupon             Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  couponUsage        CouponUsage?
+  /// UPI payment state for normal AURA HOMES bookings. Set to PENDING when the
+  /// customer submits their UTR; ACCEPTED/REJECTED after admin review. Kept
+  /// separate from `status` so a rejected payment record stays in the ledger
+  /// while the booking is simply cancelled (dates released).
+  paymentStatus       PaymentStatus?
+  /// Transaction reference the customer entered at payment time. Full value is
+  /// only ever shown to admins and inside the WhatsApp message — never public.
+  utr                 String?
+  paymentSubmittedAt  DateTime?
+  paymentAcceptedAt   DateTime?
+  paymentRejectedAt   DateTime?
+  /// Optional reason shown to the customer (tracking/confirmation) when the payment is rejected.
+  rejectionMessage    String?
+  property            Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  guestRecords        Guest[]
+  coupon              Coupon?         @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponUsage         CouponUsage?
 
   @@index([propertyId, checkIn, checkOut])
   @@index([status])
   @@index([couponCode])
+  @@index([paymentStatus])
 }
 
 model PropertyImage {
@@ -237,4 +251,16 @@ enum PropertyImageKind {
 enum CouponDiscountType {
   FIXED
   PERCENTAGE
+}
+
+/// Direct UPI payment state for a normal booking (manual admin verification).
+/// PENDING   → customer submitted a UTR, awaiting admin review (dates are held).
+/// ACCEPTED  → admin confirmed the UPI transfer (dates stay held).
+/// REJECTED  → admin could not verify the transfer; booking.status is set to
+///             CANCELLED so availabilityService/overlapService release the dates
+///             while the ledger row (with UTR) is kept for audit.
+enum PaymentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, Calendar } from 'lucide-react'
+import { ArrowRight, Calendar, Search } from 'lucide-react'
 import GlowBackground from '@/components/ui/GlowBackground'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
@@ -51,10 +51,17 @@ export default function CTASection() {
               <Calendar size={16} className="text-cyan-bright" />
               Explore Homes
             </Link>
+            <Link
+              to="/track"
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-surface-300/80 px-9 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-text-primary backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-magenta/45 hover:shadow-glow-magenta sm:w-auto"
+            >
+              <Search size={16} className="text-purple-bright" />
+              Track Booking
+            </Link>
           </div>
 
           <p className="mt-10 text-xs tracking-[0.2em] uppercase text-text-muted">
-            Three rooftop suites · Premium stays · Thoughtfully designed
+            Three rooftop suites · Premium stays · Pay by UPI, verified before check-in
           </p>
         </motion.div>
       </div>

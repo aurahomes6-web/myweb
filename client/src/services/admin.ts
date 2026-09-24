@@ -9,6 +9,7 @@ import type {
   AdminCoupon,
   AdminCouponPayload,
   AdminImageSlot,
+  AdminPayment,
   AdminProperty,
   AdminPropertyImage,
   AdminPropertyPayload,
@@ -315,4 +316,84 @@ export async function updateAdminContactSettings(
     body: JSON.stringify(payload),
   })
   return body.contact
+}
+
+// ── UPI payments (Phase 7) ──────────────────────────────────────────────────
+//
+// The payment ledger is the set of bookings with a recorded `paymentStatus`.
+// Accepting confirms a PENDING transfer; rejecting one cancels the booking and
+// releases the dates. The UTR is only ever surfaced inside this admin section.
+
+export async function fetchAdminPayments(): Promise<AdminPayment[]> {
+  const body = await request<{ payments: AdminPayment[] }>('/payments')
+  return body.payments
+}
+
+export async function acceptAdminPayment(id: string): Promise<AdminPayment> {
+  const body = await request<{ payment: AdminPayment }>(
+    `/payments/${encodeURIComponent(id)}/accept`,
+    { method: 'POST' }
+  )
+  return body.payment
+}
+
+export async function rejectAdminPayment(
+  id: string,
+  rejectionMessage?: string
+): Promise<AdminPayment> {
+  const body = await request<{ payment: AdminPayment }>(
+    `/payments/${encodeURIComponent(id)}/reject`,
+    { method: 'POST', body: JSON.stringify({ rejectionMessage }) }
+  )
+  return body.payment
+}
+
+// ── booking report download ──────────────────────────────────────────────────
+//
+// GET streams an .xlsx when bookings exist in the range, or a JSON marker when
+// the period is empty. The endpoint requires the session cookie AND the CSRF
+// header (sent below), and the filename is deterministic from the range, so the
+// client never needs to read a cross-origin header.
+
+export interface BookingReportRange {
+  from: string
+  to: string
+}
+
+export type BookingReportResult =
+  | { status: 'downloaded'; fileName: string; blob: Blob }
+  | { status: 'empty'; message: string }
+
+export async function downloadBookingReport(range: BookingReportRange): Promise<BookingReportResult> {
+  const params = new URLSearchParams({ from: range.from, to: range.to })
+  const response = await fetch(`${ADMIN_ENDPOINT}/reports/bookings?${params.toString()}`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as Partial<AdminApiErrorShape> | null
+    throw new AdminApiError({
+      status: response.status,
+      error: body?.error ?? 'INTERNAL_ERROR',
+      message: body?.message ?? 'Could not generate the report. Please try again.',
+      details: body?.details,
+    })
+  }
+
+  const contentType = response.headers.get('Content-Type') ?? ''
+  if (contentType.includes('application/json')) {
+    const body = (await response.json()) as { empty?: boolean; message?: string }
+    return {
+      status: 'empty',
+      message: body.message ?? 'No bookings found for the selected period.',
+    }
+  }
+
+  const blob = await response.blob()
+  return {
+    status: 'downloaded',
+    fileName: `AURA_HOMES_BOOKINGS_${range.from}_TO_${range.to}.xlsx`,
+    blob,
+  }
 }

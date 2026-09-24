@@ -3,6 +3,7 @@ import type {
   BookingErrorCode,
   BookingFormData,
   BookingResponse,
+  BookingTrackingResult,
 } from '@/types'
 import { API_BASE_URL } from '@/config/api'
 
@@ -66,4 +67,19 @@ export async function fetchBooking(reference: string): Promise<BookingResponse> 
     `${BOOKINGS_ENDPOINT}/${encodeURIComponent(reference)}`
   )
   return unwrap<BookingResponse>(response)
+}
+
+/**
+ * Public status lookup by booking code (e.g. "AURA…").
+ *
+ * Returns a deliberately small, safe snapshot — no guests, phones, ids or UTR.
+ * The route is registered before `/:id`, so only a booking code on this exact
+ * path shape is ever matched.
+ */
+export async function trackBooking(bookingCode: string): Promise<BookingTrackingResult> {
+  const response = await fetch(
+    `${BOOKINGS_ENDPOINT}/track/${encodeURIComponent(bookingCode)}`
+  )
+  const body = await unwrap<{ booking: BookingTrackingResult }>(response)
+  return body.booking
 }

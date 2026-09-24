@@ -1,4 +1,4 @@
-import { GuestGender } from '../generated/prisma/enums.js'
+import { GuestGender, PaymentStatus } from '../generated/prisma/enums.js'
 import { maskAadhaar } from '../lib/bookingValidation.js'
 import type { AirbnbDetailsInput } from '../lib/airbnbValidation.js'
 import { formatDateKey, nightsBetween } from '../lib/dateUtils.js'
@@ -48,6 +48,16 @@ export interface BookingNotificationPayload {
     discountPaise: number
     finalPricePaise: number
     couponCode?: string
+  }
+  /**
+   * Present for direct-UPI bookings. The UTR is the only place the transaction
+   * reference leaves the server outside of the admin panel, and the message is
+   * delivered to the configured recipient (the AURA HOMES admin).
+   */
+  payment?: {
+    status: PaymentStatus
+    utr: string
+    finalPricePaise: number
   }
 }
 
@@ -111,6 +121,26 @@ export function buildWhatsAppMessage(
     }
   }
 
+  const paymentLines: string[] = []
+  if (payload.payment !== undefined) {
+    // A submitted UTR means the customer paid (the transaction reference was
+    // shared), not that the system verified the transfer. "PAID" is always
+    // accurate for that; the admin verification state is reported separately.
+    const verification =
+      payload.payment.status === PaymentStatus.ACCEPTED
+        ? 'CONFIRMED'
+        : payload.payment.status === PaymentStatus.REJECTED
+          ? 'REJECTED'
+          : 'PENDING ADMIN VERIFICATION'
+    paymentLines.push(
+      ``,
+      `Payment: PAID`,
+      `Amount Paid: ${formatINR(payload.payment.finalPricePaise)}`,
+      `UTR: ${payload.payment.utr}`,
+      `Verification: ${verification}`,
+    )
+  }
+
   return [
     `AURA HOMES — NEW BOOKING`,
     ``,
@@ -121,6 +151,7 @@ export function buildWhatsAppMessage(
     `Guests: ${payload.guestCount}`,
     `Nights: ${nights}`,
     ...pricingLines,
+    ...paymentLines,
     ``,
     `Primary guest:`,
     `- ${primary?.fullName ?? '—'}`,

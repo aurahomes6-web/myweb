@@ -74,6 +74,11 @@ export interface BookingFormData {
   notes?: string
   /** Optional referral/offer code. Sent verbatim; the server applies the discount. */
   couponCode?: string
+  /**
+   * UPI transaction reference for the direct-UPI payment flow. Required for the
+   * normal booking path — the guest pays via UPI QR and submits the UTR here.
+   */
+  utr?: string
 }
 
 export type GuestGenderValue = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY'
@@ -98,6 +103,14 @@ export interface BookingGuestView {
 }
 
 export type BookingStatusValue = 'PENDING' | 'CONFIRMED' | 'CANCELLED'
+
+/**
+ * Direct-UPI payment state on a normal booking.
+ * PENDING → UTR submitted, awaiting admin review (dates held).
+ * ACCEPTED → admin confirmed the transfer (dates held).
+ * REJECTED → admin declined; the booking is cancelled and dates released.
+ */
+export type PaymentStatusValue = 'PENDING' | 'ACCEPTED' | 'REJECTED'
 
 export type BookingNotificationStatus =
   | 'NOT_CONFIGURED'
@@ -141,6 +154,11 @@ export interface BookingResponse {
   primaryPhone: string
   notes: string | null
   status: BookingStatusValue
+  paymentStatus: PaymentStatusValue | null
+  paymentSubmittedAt: string | null
+  paymentAcceptedAt: string | null
+  paymentRejectedAt: string | null
+  rejectionMessage: string | null
   createdAt: string
   guests: BookingGuestView[]
   property: {
@@ -227,6 +245,35 @@ export interface AvailabilityCheckRequest {
 export interface AvailabilityResult {
   available: boolean
   nights: number
+}
+
+/**
+ * Public booking status returned by GET /api/bookings/track/:bookingId.
+ *
+ * This is an intentionally tiny, safe surface: no guests, no phones, no ids
+ * and no UTR — a guest can only verify their own booking by its booking code.
+ */
+export interface BookingTrackingResult {
+  code: string
+  status: BookingStatusValue
+  paymentStatus: PaymentStatusValue | null
+  rejectionMessage: string | null
+  paymentSubmittedAt: string | null
+  paymentAcceptedAt: string | null
+  paymentRejectedAt: string | null
+  checkIn: string
+  checkOut: string
+  nights: number
+  guestCount: number
+  originalPricePaise: number | null
+  discountPaise: number | null
+  finalPricePaise: number | null
+  property: {
+    id: string
+    name: string
+    slug: string
+    shortLabel: string
+  }
 }
 
 export type AvailabilityStatus = 'idle' | 'loading' | 'available' | 'unavailable' | 'error'

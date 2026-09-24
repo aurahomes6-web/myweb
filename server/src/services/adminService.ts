@@ -1,5 +1,10 @@
 import type { PrismaClient } from '../generated/prisma/client.js'
-import { AirbnbStatus, BookingStatus, type GuestGender } from '../generated/prisma/enums.js'
+import {
+  AirbnbStatus,
+  BookingStatus,
+  PaymentStatus,
+  type GuestGender,
+} from '../generated/prisma/enums.js'
 import { addDays, toUtcDate, toDateKey } from '../lib/dateUtils.js'
 import { maskAadhaar } from '../lib/bookingValidation.js'
 import type { CreateBookingInput, BookingGuestInput } from '../lib/bookingValidation.js'
@@ -65,6 +70,12 @@ export interface AdminBookingDto {
   primaryPhone: string
   notes: string | null
   status: BookingStatus
+  paymentStatus: PaymentStatus | null
+  utr: string | null
+  paymentSubmittedAt: string | null
+  paymentAcceptedAt: string | null
+  paymentRejectedAt: string | null
+  rejectionMessage: string | null
   createdAt: string
   updatedAt: string
   guests: AdminGuestDto[]
@@ -250,6 +261,12 @@ function serializeBookingDto(row: unknown, fullAadhaar: boolean): AdminBookingDt
     primaryPhone: string
     notes: string | null
     status: BookingStatus
+    paymentStatus: PaymentStatus | null
+    utr: string | null
+    paymentSubmittedAt: Date | null
+    paymentAcceptedAt: Date | null
+    paymentRejectedAt: Date | null
+    rejectionMessage: string | null
     createdAt: Date
     updatedAt: Date
     property: PropertyRefRow | null
@@ -267,6 +284,12 @@ function serializeBookingDto(row: unknown, fullAadhaar: boolean): AdminBookingDt
     primaryPhone: r.primaryPhone,
     notes: r.notes,
     status: r.status,
+    paymentStatus: r.paymentStatus,
+    utr: r.utr ?? null,
+    paymentSubmittedAt: r.paymentSubmittedAt?.toISOString() ?? null,
+    paymentAcceptedAt: r.paymentAcceptedAt?.toISOString() ?? null,
+    paymentRejectedAt: r.paymentRejectedAt?.toISOString() ?? null,
+    rejectionMessage: r.rejectionMessage ?? null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     guests: r.guestRecords.map((g) => serializeGuest(g, fullAadhaar)),

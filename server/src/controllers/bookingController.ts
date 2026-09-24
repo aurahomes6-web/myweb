@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { Prisma } from '../generated/prisma/client.js'
-import { BookingStatus, GuestGender } from '../generated/prisma/enums.js'
+import { BookingStatus, GuestGender, PaymentStatus } from '../generated/prisma/enums.js'
 import type { Booking, Property } from '../generated/prisma/client.js'
 import { prisma } from '../lib/db.js'
 import { toDateKey, toUtcDate } from '../lib/dateUtils.js'
@@ -9,6 +9,7 @@ import {
   maskAadhaar,
   type CreateBookingInput,
 } from '../lib/bookingValidation.js'
+import { isUtrReference } from '../lib/paymentValidation.js'
 import { resolveProperty } from '../services/availabilityService.js'
 import { generateBookingCode } from '../lib/bookingCode.js'
 import {
@@ -17,6 +18,10 @@ import {
   sendBookingNotification,
   type BookingNotificationPayload,
 } from '../services/notificationService.js'
+import {
+  trackBookingByCode,
+  NotFoundError,
+} from '../services/bookingTrackingService.js'
 import { consumeCouponInTransaction, CouponInvalidError } from '../services/couponService.js'
 import { computeStayTotal, CURRENCY, type PricingSnapshot } from '../services/pricingService.js'
 
@@ -130,6 +135,9 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
               finalPricePaise,
               couponId: coupon?.id ?? null,
               couponCode: coupon?.code ?? null,
+              paymentStatus: input.utr ? PaymentStatus.PENDING : null,
+              utr: input.utr ?? null,
+              paymentSubmittedAt: input.utr ? new Date() : null,
               guestRecords: {
                 create: input.guests.map((guest, index) => ({
                   fullName: guest.fullName,
@@ -222,6 +230,11 @@ export function serializeBooking(booking: Booking, guests?: SafeGuest[]) {
     primaryPhone: booking.primaryPhone,
     notes: booking.notes,
     status: booking.status,
+    paymentStatus: booking.paymentStatus ?? null,
+    paymentSubmittedAt: booking.paymentSubmittedAt?.toISOString() ?? null,
+    paymentAcceptedAt: booking.paymentAcceptedAt?.toISOString() ?? null,
+    paymentRejectedAt: booking.paymentRejectedAt?.toISOString() ?? null,
+    rejectionMessage: booking.rejectionMessage ?? null,
     createdAt: booking.createdAt.toISOString(),
     pricing: bookingPricingSnapshot(booking),
   }
@@ -256,6 +269,15 @@ function buildNotificationPayload(
           },
         }
       : {}),
+    ...(booking.utr
+      ? {
+          payment: {
+            status: (booking.paymentStatus ?? PaymentStatus.PENDING),
+            utr: booking.utr,
+            finalPricePaise: booking.finalPricePaise ?? 0,
+          },
+        }
+      : {}),
   }
 }
 
@@ -270,6 +292,23 @@ export async function createBookingHandler(req: Request, res: Response) {
   }
 
   const input = result.value
+
+  // Direct-UPI bookings must carry a transaction reference. The shared
+  // validator keeps `utr` optional (admin updates reuse it), so presence is
+  // enforced here on the public create path.
+  if (input.utr === undefined || !isUtrReference(input.utr)) {
+    return res.status(400).json({
+      error: 'VALIDATION_ERROR',
+      message: 'Please review the highlighted fields.',
+      details: [
+        {
+          field: 'utr',
+          message: 'Please enter the 12–22 character UTR (transaction reference) from your UPI payment.',
+        },
+      ],
+    })
+  }
+
   const property = await resolveProperty(input.propertyId)
   if (!property) {
     return res.status(404).json({
@@ -368,4 +407,24 @@ export async function getBookingHandler(req: Request, res: Response) {
     property: booking.property,
     notification: getWhatsAppStatus(),
   })
+}
+
+export async function trackBookingHandler(req: Request, res: Response) {
+  const code = typeof req.params.bookingId === 'string' ? req.params.bookingId : ''
+  if (code.trim().length === 0) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A Booking ID is required.' })
+  }
+
+  try {
+    const tracked = await trackBookingByCode(prisma, code)
+    return res.json({ booking: tracked })
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      return res.status(404).json({
+        error: 'NOT_FOUND',
+        message: 'No booking found with that Booking ID.',
+      })
+    }
+    throw err
+  }
 }
