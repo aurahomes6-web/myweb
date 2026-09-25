@@ -39,6 +39,7 @@ export interface Property {
   location: string | null
   /** Nightly rate in integer paise (₹3,000 → 300000). Phase 5. */
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
   /** DB-backed images (Phase 5). Falls back to `image`/`gallery` when empty. */
   images: PropertyApiImage[]
   /** Admin-configured THE SPACE cards, ordered by `sort`. */

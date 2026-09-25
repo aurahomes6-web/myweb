@@ -28,6 +28,38 @@ test('parses a complete valid property payload', () => {
   assert.equal(result.value.beds, 2)
   assert.deepStrictEqual(result.value.amenities, ['Private balcony', 'Smart TV', 'Wi-Fi'])
   assert.equal(result.value.location, 'Whitefield, Bengaluru')
+  assert.equal(result.value.discountedPricePerNightPaise, null)
+})
+
+test('accepts a discounted nightly rate below the original rate', () => {
+  const body = baseProperty()
+  body.discountedPricePerNightPaise = 200000
+  const result = parsePropertyUpdate(body)
+  assert.equal(result.ok, true)
+  assert.ok(result.ok)
+  assert.equal(result.value.discountedPricePerNightPaise, 200000)
+})
+
+test('normalizes a blank discounted nightly rate to null', () => {
+  for (const discountedPricePerNightPaise of [null, '']) {
+    const body = baseProperty()
+    body.discountedPricePerNightPaise = discountedPricePerNightPaise
+    const result = parsePropertyUpdate(body)
+    assert.equal(result.ok, true)
+    assert.ok(result.ok && result.value.discountedPricePerNightPaise === null)
+  }
+})
+
+test('rejects an invalid discounted nightly rate', () => {
+  for (const discountedPricePerNightPaise of [0, -1, 250000, 300000, 1.5]) {
+    const body = baseProperty()
+    body.discountedPricePerNightPaise = discountedPricePerNightPaise
+    const result = parsePropertyUpdate(body)
+    assert.equal(result.ok, false)
+    assert.ok(
+      !result.ok && result.issues.some((issue) => issue.field === 'discountedPricePerNightPaise')
+    )
+  }
 })
 
 test('accepts an unset beds field', () => {

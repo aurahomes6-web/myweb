@@ -238,9 +238,20 @@
     pointer-events: none;
   }
 
+  .aura-marquee-track {
+    animation: aura-marquee var(--aura-marquee-duration, 36s) linear infinite;
+    will-change: transform;
+  }
+
   @keyframes aura-border {
     to {
       --aura-angle: 360deg;
+    }
+  }
+
+  @keyframes aura-marquee {
+    to {
+      transform: translate3d(-50%, 0, 0);
     }
   }
 }
@@ -255,7 +266,8 @@
     scroll-behavior: auto !important;
   }
 
-  .animated-gradient-border {
+  .animated-gradient-border,
+  .aura-marquee-track {
     animation: none;
   }
 }

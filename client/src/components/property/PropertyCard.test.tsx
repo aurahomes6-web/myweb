@@ -29,6 +29,7 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     amenities: ['Free Wi-Fi', 'Smart TV'],
     location: null,
     pricePerNightPaise: 300000,
+    discountedPricePerNightPaise: null,
     images: [],
     spaceAttributes: [],
     ...overrides,
@@ -168,5 +169,23 @@ describe('PropertyCard — dynamic THE SPACE attributes', () => {
     const noIcon = render(makeProperty({ spaceAttributes: [attribute('Pet friendly', 'Yes', null, 0)] }))
     expect(noIcon).toContain('lucide-sparkles')
     expect(noIcon).toContain('Pet friendly Yes')
+  })
+})
+
+describe('PropertyCard — nightly pricing', () => {
+  it('shows only the original rate when no discount is configured', () => {
+    const html = render(makeProperty())
+    expect(html).toContain('₹3,000')
+    expect(html).not.toContain('line-through')
+    expect(html).not.toContain('% off')
+    expect(html).not.toContain('Offer price')
+  })
+
+  it('shows the effective rate with the original rate crossed out', () => {
+    const html = render(makeProperty({ discountedPricePerNightPaise: 240000 }))
+    expect(html).toContain('₹2,400')
+    expect(html).toContain('₹3,000')
+    expect(html).toContain('20% off')
+    expect(html).toContain('line-through')
   })
 })

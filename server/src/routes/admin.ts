@@ -48,6 +48,13 @@ import {
   adminUpdateHomepageSettingsHandler,
   adminUploadHomepageVisualHandler,
 } from '../controllers/homepageSettingsController.js'
+import {
+  adminCreateMarqueeNotificationHandler,
+  adminDeleteMarqueeNotificationHandler,
+  adminListMarqueeNotificationsHandler,
+  adminReorderMarqueeNotificationsHandler,
+  adminUpdateMarqueeNotificationHandler,
+} from '../controllers/marqueeNotificationController.js'
 
 const config = adminConfig(process.env)
 const auth = requireConfiguredAdmin(config)
@@ -126,6 +133,32 @@ router.post(
   adminUploadHomepageVisualHandler
 )
 router.delete('/homepage-settings/visual', requireCsrfHeader, auth, adminDeleteHomepageVisualHandler)
+
+router.get('/marquee-notifications', auth, adminListMarqueeNotificationsHandler)
+router.post(
+  '/marquee-notifications',
+  requireCsrfHeader,
+  auth,
+  adminCreateMarqueeNotificationHandler
+)
+router.put(
+  '/marquee-notifications/reorder',
+  requireCsrfHeader,
+  auth,
+  adminReorderMarqueeNotificationsHandler
+)
+router.patch(
+  '/marquee-notifications/:id',
+  requireCsrfHeader,
+  auth,
+  adminUpdateMarqueeNotificationHandler
+)
+router.delete(
+  '/marquee-notifications/:id',
+  requireCsrfHeader,
+  auth,
+  adminDeleteMarqueeNotificationHandler
+)
 
 // Direct-UPI payment settings (payee name/id/phone + QR asset) editable from
 // the Admin panel. All three endpoints reuse the existing admin auth: reads

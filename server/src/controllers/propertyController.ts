@@ -46,6 +46,7 @@ export interface PublicProperty {
   location: string | null
   /** Nightly rate in integer paise (₹3,000 → 300000). */
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
   images: PublicPropertyImage[]
   spaceAttributes: PublicSpaceAttribute[]
 }
@@ -72,6 +73,7 @@ interface PropertyRow {
   visual: string
   location: string | null
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
   images?: PropertyImageRow[]
   spaceAttributes?: PublicSpaceAttribute[]
 }
@@ -96,6 +98,7 @@ export function serializeProperty(property: PropertyRow): PublicProperty {
     visual: property.visual,
     location: property.location,
     pricePerNightPaise: property.pricePerNightPaise,
+    discountedPricePerNightPaise: property.discountedPricePerNightPaise ?? null,
     images: (property.images ?? []).map(serializeImage),
     spaceAttributes: (property.spaceAttributes ?? []).map((attr) => ({
       id: attr.id,

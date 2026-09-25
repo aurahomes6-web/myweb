@@ -10,6 +10,8 @@ import type {
   AdminCouponPayload,
   AdminHomepageSettings,
   AdminImageSlot,
+  AdminMarqueeNotification,
+  AdminMarqueeNotificationPayload,
   AdminPayment,
   AdminPaymentSettings,
   AdminProperty,
@@ -357,6 +359,56 @@ export async function resetAdminHomepageVisual(): Promise<AdminHomepageSettings>
     method: 'DELETE',
   })
   return body.settings
+}
+
+export async function fetchAdminMarqueeNotifications(): Promise<AdminMarqueeNotification[]> {
+  const body = await request<{ notifications: AdminMarqueeNotification[] }>(
+    '/marquee-notifications'
+  )
+  return body.notifications
+}
+
+export async function createAdminMarqueeNotification(
+  payload: Required<AdminMarqueeNotificationPayload>
+): Promise<AdminMarqueeNotification> {
+  const body = await request<{ notification: AdminMarqueeNotification }>('/marquee-notifications', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return body.notification
+}
+
+export async function updateAdminMarqueeNotification(
+  id: string,
+  payload: AdminMarqueeNotificationPayload
+): Promise<AdminMarqueeNotification> {
+  const body = await request<{ notification: AdminMarqueeNotification }>(
+    `/marquee-notifications/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }
+  )
+  return body.notification
+}
+
+export async function reorderAdminMarqueeNotifications(
+  ids: string[]
+): Promise<AdminMarqueeNotification[]> {
+  const body = await request<{ notifications: AdminMarqueeNotification[] }>(
+    '/marquee-notifications/reorder',
+    {
+      method: 'PUT',
+      body: JSON.stringify({ ids }),
+    }
+  )
+  return body.notifications
+}
+
+export async function deleteAdminMarqueeNotification(id: string): Promise<void> {
+  await request<{ deleted: true }>(`/marquee-notifications/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
 }
 
 // ── UPI payments (Phase 7) ──────────────────────────────────────────────────

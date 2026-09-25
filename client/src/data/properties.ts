@@ -34,6 +34,7 @@ export const properties: Property[] = [
     ],
     location: null,
     pricePerNightPaise: 300000,
+    discountedPricePerNightPaise: null,
     images: [],
   },
   {
@@ -68,6 +69,7 @@ export const properties: Property[] = [
     ],
     location: null,
     pricePerNightPaise: 300000,
+    discountedPricePerNightPaise: null,
     images: [],
   },
   {
@@ -102,6 +104,7 @@ export const properties: Property[] = [
     ],
     location: null,
     pricePerNightPaise: 300000,
+    discountedPricePerNightPaise: null,
     images: [],
   },
 ]

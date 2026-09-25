@@ -5,7 +5,7 @@ import type { Property } from '@/types'
 import { accentPalettes } from '@/config/accents'
 import PropertyVisual from '@/components/visuals/PropertyVisual'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { formatINR } from '@/lib/money'
+import { formatINR, resolveNightlyPricing } from '@/lib/money'
 import { cn } from '@/lib/cn'
 import { formatGuestCapacity } from '@/lib/space'
 import { spaceIconOrDefault } from '@/config/spaceIcons'
@@ -18,6 +18,10 @@ interface PropertyCardProps {
 export default function PropertyCard({ property, index }: PropertyCardProps) {
   const reduced = useReducedMotion()
   const accent = accentPalettes[property.accent]
+  const pricing = resolveNightlyPricing(
+    property.pricePerNightPaise,
+    property.discountedPricePerNightPaise
+  )
 
   const specs: Array<{ key: string; icon: LucideIcon; value: string }> = []
   specs.push({
@@ -104,10 +108,24 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
 
         <div className="mt-6 flex items-center justify-between gap-3">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Nightly rate</p>
-          <p className="font-display text-xl font-bold tracking-tight text-text-primary">
-            {formatINR(property.pricePerNightPaise)}
-            <span className="ml-1 text-xs font-medium text-text-muted">/ night</span>
-          </p>
+          <div className="text-right">
+            <p className="font-display text-xl font-bold tracking-tight text-text-primary">
+              {formatINR(pricing.effectivePricePaise)}
+              <span className="ml-1 text-xs font-medium text-text-muted">/ night</span>
+            </p>
+            {pricing.hasDiscount && (
+              <div className="mt-1 flex items-center justify-end gap-2">
+                <span className="text-xs font-medium text-text-muted line-through">
+                  {formatINR(property.pricePerNightPaise)}
+                </span>
+                <span className="rounded-full bg-cyan/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-bright">
+                  {pricing.discountPercent && pricing.discountPercent > 0
+                    ? `${pricing.discountPercent}% off`
+                    : 'Offer price'}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-7 flex flex-1 flex-col items-end gap-2.5">

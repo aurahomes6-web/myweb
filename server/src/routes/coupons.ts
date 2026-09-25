@@ -3,7 +3,7 @@ import { prisma } from '../lib/db.js'
 import { normalizeCouponCode } from '../lib/couponValidation.js'
 import { toUtcDate } from '../lib/dateUtils.js'
 import { checkCouponUsable } from '../services/couponService.js'
-import { computeDiscountPaise, computeStayTotal, CURRENCY } from '../services/pricingService.js'
+import { computeDiscountPaise, computeStayPricing, CURRENCY } from '../services/pricingService.js'
 
 /**
  * Public coupon validation. This endpoint never increments usage and never
@@ -53,7 +53,7 @@ router.post('/validate', async (req, res) => {
     try {
       const property = await prisma.property.findFirst({
         where: { OR: [{ id: propertyId }, { slug: propertyId }] },
-        select: { pricePerNightPaise: true },
+        select: { pricePerNightPaise: true, discountedPricePerNightPaise: true },
       })
       const nights = Math.round(
         (toUtcDate(checkOut).getTime() - toUtcDate(checkIn).getTime()) / (1000 * 60 * 60 * 24)
@@ -68,7 +68,11 @@ router.post('/validate', async (req, res) => {
             expiresAt: coupon.expiresAt ? new Date(coupon.expiresAt) : null,
             deactivatedAt: coupon.deactivatedAt ? new Date(coupon.deactivatedAt) : null,
           },
-          computeStayTotal(property.pricePerNightPaise, nights)
+          computeStayPricing(
+            property.pricePerNightPaise,
+            property.discountedPricePerNightPaise,
+            nights
+          ).effectivePricePaise
         )
       }
     } catch {

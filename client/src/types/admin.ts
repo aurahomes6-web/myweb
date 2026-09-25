@@ -128,6 +128,7 @@ export interface AdminProperty {
   location: string | null
   /** Nightly rate in integer paise (₹3,000 → 300000). Server-authoritative. */
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
   /** Uploaded photographs (Phase 5). Empty when the static fallbacks are used. */
   images: AdminPropertyImage[]
   /** Ordered THE SPACE attribute cards for this home. */
@@ -227,6 +228,20 @@ export interface AdminHomepageSettings {
   visualImageUrl: string | null
   visualImageAlt: string
   visualSource: 'custom' | 'fallback'
+}
+
+export interface AdminMarqueeNotification {
+  id: string
+  message: string
+  isActive: boolean
+  sort: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AdminMarqueeNotificationPayload {
+  message?: string
+  isActive?: boolean
 }
 
 /**

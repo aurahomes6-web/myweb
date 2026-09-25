@@ -19,6 +19,31 @@ export function formatINR(paise: number): string {
   return `${currencySymbol()}${indianGroup(paise / 100)}`
 }
 
+export interface NightlyPricing {
+  effectivePricePaise: number
+  hasDiscount: boolean
+  discountPercent: number | null
+}
+
+export function resolveNightlyPricing(
+  originalPricePaise: number,
+  discountedPricePaise: number | null
+): NightlyPricing {
+  const hasDiscount =
+    discountedPricePaise !== null &&
+    Number.isInteger(discountedPricePaise) &&
+    discountedPricePaise > 0 &&
+    discountedPricePaise < originalPricePaise
+  const effectivePricePaise = hasDiscount ? discountedPricePaise : originalPricePaise
+  return {
+    effectivePricePaise,
+    hasDiscount,
+    discountPercent: hasDiscount
+      ? Math.round(((originalPricePaise - effectivePricePaise) * 100) / originalPricePaise)
+      : null,
+  }
+}
+
 /** 300000 → 3,000 */
 export function formatINRWithoutSymbol(paise: number): string {
   return indianGroup(paise / 100)

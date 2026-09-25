@@ -49,6 +49,45 @@ export function computeStayTotal(pricePerNightPaise: number, nights: number): nu
   return pricePerNightPaise * nights
 }
 
+export function resolveEffectiveNightlyPricePaise(
+  originalPricePerNightPaise: number,
+  discountedPricePerNightPaise: number | null
+): number {
+  return discountedPricePerNightPaise !== null &&
+    discountedPricePerNightPaise > 0 &&
+    discountedPricePerNightPaise < originalPricePerNightPaise
+    ? discountedPricePerNightPaise
+    : originalPricePerNightPaise
+}
+
+export interface StayPricing {
+  originalPricePaise: number
+  effectivePricePaise: number
+  propertyDiscountPaise: number
+  discountPaise: number
+  finalPricePaise: number
+}
+
+export function computeStayPricing(
+  originalPricePerNightPaise: number,
+  discountedPricePerNightPaise: number | null,
+  nights: number
+): StayPricing {
+  const originalPricePaise = computeStayTotal(originalPricePerNightPaise, nights)
+  const effectivePricePaise = computeStayTotal(
+    resolveEffectiveNightlyPricePaise(originalPricePerNightPaise, discountedPricePerNightPaise),
+    nights
+  )
+  const propertyDiscountPaise = originalPricePaise - effectivePricePaise
+  return {
+    originalPricePaise,
+    effectivePricePaise,
+    propertyDiscountPaise,
+    discountPaise: propertyDiscountPaise,
+    finalPricePaise: effectivePricePaise,
+  }
+}
+
 /** Discount in paise for a coupon against a given pre-discount total. */
 export function computeDiscountPaise(
   coupon: CouponForPricing,

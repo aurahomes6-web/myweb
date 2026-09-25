@@ -18,6 +18,7 @@ export interface PropertyUpdateInput {
   location: string | null
   /** Nightly rate in integer paise (₹3,000 → 300000). Required server-side. */
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
 }
 
 export interface ValidationIssue {
@@ -63,6 +64,13 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
     ? null
     : parsePositiveInt(body.beds)
   const pricePerNightPaise = parsePositiveInt(body.pricePerNightPaise)
+  const hasDiscountedPrice =
+    body.discountedPricePerNightPaise !== undefined &&
+    body.discountedPricePerNightPaise !== null &&
+    body.discountedPricePerNightPaise !== ''
+  const discountedPricePerNightPaise = hasDiscountedPrice
+    ? parsePositiveInt(body.discountedPricePerNightPaise)
+    : null
 
   const fields: Array<{ field: string; label: string; value: string | null }> = [
     { field: 'name', label: 'Property name', value: name },
@@ -89,6 +97,22 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
     issues.push({
       field: 'pricePerNightPaise',
       message: 'Nightly rate must be a positive amount in paise.',
+    })
+  }
+  if (hasDiscountedPrice && discountedPricePerNightPaise === null) {
+    issues.push({
+      field: 'discountedPricePerNightPaise',
+      message: 'Discounted nightly rate must be a positive amount in paise.',
+    })
+  }
+  if (
+    pricePerNightPaise !== null &&
+    discountedPricePerNightPaise !== null &&
+    discountedPricePerNightPaise >= pricePerNightPaise
+  ) {
+    issues.push({
+      field: 'discountedPricePerNightPaise',
+      message: 'Discounted nightly rate must be lower than the original nightly rate.',
     })
   }
 
@@ -131,6 +155,7 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
       visual: visual as string,
       location,
       pricePerNightPaise: pricePerNightPaise as number,
+      discountedPricePerNightPaise,
     },
   }
 }

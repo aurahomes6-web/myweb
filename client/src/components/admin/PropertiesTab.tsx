@@ -6,7 +6,31 @@ import { deleteAdminProperty } from '@/services/admin'
 import { AdminPropertyForm } from '@/components/admin/AdminPropertyForm'
 import { DetailList, ErrorBanner } from '@/components/admin/AdminFormControls'
 import { AdminApiError } from '@/services/admin'
-import { formatINR } from '@/lib/money'
+import { formatINR, resolveNightlyPricing } from '@/lib/money'
+
+function PropertyNightlyRate({ property }: { property: AdminProperty }) {
+  const pricing = resolveNightlyPricing(
+    property.pricePerNightPaise,
+    property.discountedPricePerNightPaise
+  )
+  return (
+    <div className="text-text-muted">
+      <span className="inline-flex items-center gap-1.5">
+        <IndianRupee size={13} className="text-purple-bright" /> {formatINR(pricing.effectivePricePaise)} / night
+      </span>
+      {pricing.hasDiscount && (
+        <div className="mt-1 flex items-center gap-2 pl-[19px] text-[11px]">
+          <span className="line-through">{formatINR(property.pricePerNightPaise)}</span>
+          <span className="rounded-full bg-cyan/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-cyan-bright">
+            {pricing.discountPercent && pricing.discountPercent > 0
+              ? `${pricing.discountPercent}% off`
+              : 'Offer price'}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function PropertiesTab() {
   const { properties, status, error } = useAdminProperties()
@@ -101,9 +125,7 @@ export function PropertiesTab() {
                 <p className="inline-flex items-center gap-1.5 text-text-muted">
                   <Ruler size={13} className="text-magenta-bright" /> {property.sqft} sqft
                 </p>
-                <p className="inline-flex items-center gap-1.5 text-text-muted">
-                  <IndianRupee size={13} className="text-purple-bright" /> {formatINR(property.pricePerNightPaise)} / night
-                </p>
+                <PropertyNightlyRate property={property} />
                 <p className="inline-flex items-center gap-1.5 text-text-muted">· {property.bathrooms} bath</p>
               </div>
 

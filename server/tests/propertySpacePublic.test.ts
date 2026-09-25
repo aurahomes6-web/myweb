@@ -21,6 +21,7 @@ function baseRow(): Parameters<typeof serializeProperty>[0] {
     visual: 'modern',
     location: 'Nainital',
     pricePerNightPaise: 300000,
+    discountedPricePerNightPaise: 240000,
   }
 }
 
@@ -29,6 +30,7 @@ test('serializeProperty exposes minGuests and maps maxGuests from capacity', () 
   assert.equal(serialized.minGuests, 2)
   assert.equal(serialized.maxGuests, 4)
   assert.equal(serialized.capacity, 4)
+  assert.equal(serialized.discountedPricePerNightPaise, 240000)
 })
 
 test('serializeProperty defers to capacity when minGuests is absent', () => {

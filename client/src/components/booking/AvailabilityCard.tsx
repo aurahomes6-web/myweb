@@ -16,7 +16,7 @@ import { useAvailability } from '@/hooks/useAvailability'
 import DateRangePicker from '@/components/booking/DateRangePicker'
 import GuestSelector from '@/components/booking/GuestSelector'
 import { formatShortDate } from '@/lib/date'
-import { formatINR } from '@/lib/money'
+import { formatINR, resolveNightlyPricing } from '@/lib/money'
 import { cn } from '@/lib/cn'
 
 interface AvailabilityCardProps {
@@ -47,6 +47,10 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
     guests,
   ])
   const { status, result, retry } = useAvailability(query)
+  const pricing = resolveNightlyPricing(
+    property.pricePerNightPaise,
+    property.discountedPricePerNightPaise
+  )
 
   useEffect(() => {
     const next = new URLSearchParams()
@@ -85,8 +89,20 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
         </p>
         <div className="text-right">
           <p className="font-display text-xl font-bold tracking-tight text-text-primary">
-            {formatINR(property.pricePerNightPaise)}
+            {formatINR(pricing.effectivePricePaise)}
           </p>
+          {pricing.hasDiscount && (
+            <div className="mt-0.5 flex items-center justify-end gap-2">
+              <span className="text-[11px] font-medium text-text-muted line-through">
+                {formatINR(property.pricePerNightPaise)}
+              </span>
+              <span className="rounded-full bg-cyan/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-cyan-bright">
+                {pricing.discountPercent && pricing.discountPercent > 0
+                  ? `${pricing.discountPercent}% off`
+                  : 'Offer price'}
+              </span>
+            </div>
+          )}
           <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-text-muted">per night · taxes extra</p>
         </div>
       </div>
@@ -199,7 +215,7 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
                       <p className="font-medium text-text-primary">Available for your dates</p>
                       <p className="text-xs text-text-muted">
                         {result.nights} night{result.nights === 1 ? '' : 's'} · {guests} guest
-                        {guests === 1 ? '' : 's'} · est. {formatINR(property.pricePerNightPaise * result.nights)}
+                        {guests === 1 ? '' : 's'} · est. {formatINR(pricing.effectivePricePaise * result.nights)}
                       </p>
                     </div>
                   </motion.div>

@@ -22,7 +22,7 @@ import { CouponBox } from '@/components/booking/CouponBox'
 import NotFoundContent from '@/components/ui/NotFoundContent'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { cn } from '@/lib/cn'
-import { formatINR } from '@/lib/money'
+import { formatINR, resolveNightlyPricing } from '@/lib/money'
 import { formatShortDate, isValidRange, nightsBetween, today } from '@/lib/date'
 import type { AppliedCoupon, BookingFormData, BookingResponse, Property, PropertySlug } from '@/types'
 
@@ -129,9 +129,13 @@ function BookingWizard({
   const palette = accentPalettes[property.accent]
   const rangeValid = isValidRange(checkIn, checkOut, today())
   const nights = rangeValid ? nightsBetween(checkIn, checkOut) : 0
+  const pricing = resolveNightlyPricing(
+    property.pricePerNightPaise,
+    property.discountedPricePerNightPaise
+  )
 
-  const originalTotal = nights * property.pricePerNightPaise
-  const finalTotal = Math.max(0, originalTotal - (coupon?.discountPaise ?? 0))
+  const subtotal = nights * pricing.effectivePricePaise
+  const totalDue = Math.max(0, subtotal - (coupon?.discountPaise ?? 0))
 
   return (
     <div className={cn('grid gap-12', rangeValid ? 'lg:grid-cols-[minmax(0,1fr)_400px]' : '')}>
@@ -181,8 +185,8 @@ function BookingWizard({
             {step === 'payment' && basePayload && (
               <PaymentStep
                 basePayload={basePayload}
-                originalTotal={originalTotal}
-                finalTotal={finalTotal}
+                originalTotal={subtotal}
+                finalTotal={totalDue}
                 coupon={coupon}
                 onBack={() => setStep('details')}
                 onSuccess={(booking: BookingResponse, whatsAppOpened?: boolean) => {
@@ -254,14 +258,28 @@ function BookingWizard({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-text-muted">Nightly rate</span>
-                <span className="font-semibold text-text-primary">{formatINR(property.pricePerNightPaise)}</span>
+                <div className="text-right">
+                  <span className="font-semibold text-text-primary">{formatINR(pricing.effectivePricePaise)}</span>
+                  {pricing.hasDiscount && (
+                    <div className="mt-0.5 flex items-center justify-end gap-2">
+                      <span className="text-[11px] text-text-muted line-through">
+                        {formatINR(property.pricePerNightPaise)}
+                      </span>
+                      <span className="rounded-full bg-cyan/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-cyan-bright">
+                        {pricing.discountPercent && pricing.discountPercent > 0
+                          ? `${pricing.discountPercent}% off`
+                          : 'Offer price'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-muted">Stay total</span>
-                <span className="font-semibold text-text-primary">{formatINR(originalTotal)}</span>
+                <span className="font-semibold text-text-primary">{formatINR(subtotal)}</span>
               </div>
 
               {coupon && (
@@ -276,7 +294,7 @@ function BookingWizard({
               <div className="flex items-center justify-between border-t border-surface-300/30 pt-3">
                 <span className="text-sm font-semibold text-text-secondary">Total due</span>
                 <span className="font-display text-xl font-bold tracking-tight text-text-primary">
-                  {formatINR(finalTotal)}
+                  {formatINR(totalDue)}
                 </span>
               </div>
 

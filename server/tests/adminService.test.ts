@@ -437,6 +437,7 @@ function seedProperty(fake: FakeDb, overrides: Record<string, unknown> = {}) {
     visual: 'purple',
     location: 'Whitefield',
     pricePerNightPaise: 280000,
+    discountedPricePerNightPaise: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -853,6 +854,28 @@ test('updateBooking replaces guest records and keeps cancelled status intact', a
   assert.deepStrictEqual(names, ['Asha Rao', 'New Guest'])
 })
 
+test('updateBooking snapshots the discounted effective stay total', async () => {
+  const fake = makeDb()
+  seedProperty(fake, { discountedPricePerNightPaise: 240000 })
+  const booking = seedBooking(fake)
+
+  await updateBooking(asClient(fake), booking.id, {
+    propertyId: 'prop-1',
+    checkIn: '2026-10-20',
+    checkOut: '2026-10-24',
+    guestCount: 2,
+    primaryPhone: '9812345678',
+    guests: [
+      { fullName: 'Asha', aadhaarNumber: '123456789012', gender: 'FEMALE', age: 34 },
+    ],
+  })
+
+  const stored = fake.bookings.find((row) => row.id === booking.id)
+  assert.equal(stored?.originalPricePaise, 1120000)
+  assert.equal(stored?.discountPaise, 160000)
+  assert.equal(stored?.finalPricePaise, 960000)
+})
+
 test('updateBooking rejects a window occupied by an Airbnb reservation', async () => {
   const fake = makeDb()
   seedProperty(fake)
@@ -927,12 +950,15 @@ test('updateProperty persists editable fields including facilities', async () =>
     visual: 'cyan',
     location: 'Koramangala',
     pricePerNightPaise: 280000,
+    discountedPricePerNightPaise: 240000,
   })
 
   assert.equal(updated.name, 'Aura Sky Penthouse')
   assert.equal(updated.beds, 3)
   assert.deepStrictEqual(updated.amenities, ['Ocean view', 'Jacuzzi'])
   assert.equal(updated.capacity, 4)
+  assert.equal(updated.pricePerNightPaise, 280000)
+  assert.equal(updated.discountedPricePerNightPaise, 240000)
 })
 
 test('deleteProperty is refused while bookings or reservations exist', async () => {

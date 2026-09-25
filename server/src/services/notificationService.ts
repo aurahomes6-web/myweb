@@ -42,7 +42,7 @@ export interface BookingNotificationPayload {
   guestCount: number
   primaryPhone: string
   guests: GuestForNotification[]
-  /** Present when a coupon was applied at booking time (Phase 5). */
+  /** Present when a property or coupon discount was applied at booking time. */
   pricing?: {
     originalPricePaise: number
     discountPaise: number

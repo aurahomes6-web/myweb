@@ -58,6 +58,11 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
   const [visual, setVisual] = useState<string>(VISUALS.includes(property.visual as (typeof VISUALS)[number]) ? property.visual : 'moon')
   const [location, setLocation] = useState(property.location ?? '')
   const [priceInput, setPriceInput] = useState(formatINRWithoutSymbol(property.pricePerNightPaise))
+  const [discountedPriceInput, setDiscountedPriceInput] = useState(
+    property.discountedPricePerNightPaise === null
+      ? ''
+      : formatINRWithoutSymbol(property.discountedPricePerNightPaise)
+  )
 
   // THE SPACE
   const [minGuests, setMinGuests] = useState(String(property.minGuests))
@@ -93,6 +98,20 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
     if (numberOr(sqft, -1) <= 0) errors.push('Interior size must be greater than 0.')
     const pricePaise = parseINRToPaise(priceInput)
     if (pricePaise === null || pricePaise <= 0) errors.push('Nightly price must be a positive amount in ₹.')
+    const hasDiscountedPrice = discountedPriceInput.trim() !== ''
+    const discountedPricePaise = hasDiscountedPrice
+      ? parseINRToPaise(discountedPriceInput)
+      : null
+    if (hasDiscountedPrice && (discountedPricePaise === null || discountedPricePaise <= 0)) {
+      errors.push('Discounted nightly price must be a positive amount in ₹.')
+    } else if (
+      discountedPricePaise !== null &&
+      pricePaise !== null &&
+      pricePaise > 0 &&
+      discountedPricePaise >= pricePaise
+    ) {
+      errors.push('Discounted nightly price must be lower than the original nightly price.')
+    }
 
     if (minGuestCount < 1) errors.push('Minimum guests must be at least 1.')
     if (maxGuestCount < 1) errors.push('Maximum guests must be at least 1.')
@@ -164,6 +183,9 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
         visual: (VISUALS as readonly string[]).includes(visual) ? visual : 'moon',
         location: location.trim() || null,
         pricePerNightPaise: parseINRToPaise(priceInput) as number,
+        discountedPricePerNightPaise: discountedPriceInput.trim() === ''
+          ? null
+          : parseINRToPaise(discountedPriceInput),
       })
       const attributes: AdminSpaceAttributeInput[] = spaceAttributes.map((attribute) => ({
         label: attribute.label.trim(),
@@ -236,13 +258,23 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
           <Field label="Interior size (sqft)">
             <TextInput type="number" min={1} value={sqft} onChange={(event) => setSqft(event.target.value.replace(/\D/g, ''))} disabled={submitting} />
           </Field>
-          <Field label="Price per night (₹)" hint="Normal rupees, e.g. “3000” or “3,500”. Saved as paise and used everywhere on the public site.">
+          <Field label="Original price per night (₹)" hint="Regular rate in rupees, saved as paise.">
             <TextInput
               type="text"
               inputMode="decimal"
               value={priceInput}
               onChange={(event) => setPriceInput(event.target.value.replace(/[^\d,.\s]/g, ''))}
               placeholder="3,000"
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Discounted price per night (₹)" hint="Optional. Must be lower than the original price. Leave blank for no discount.">
+            <TextInput
+              type="text"
+              inputMode="decimal"
+              value={discountedPriceInput}
+              onChange={(event) => setDiscountedPriceInput(event.target.value.replace(/[^\d,.\s]/g, ''))}
+              placeholder="2,400"
               disabled={submitting}
             />
           </Field>

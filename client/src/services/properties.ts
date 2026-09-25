@@ -45,6 +45,7 @@ interface PublicPropertyApiItem {
   location: string | null
   /** Nightly rate in integer paise (₹3,000 → 300000). Phase 5. */
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
   /** DB-backed images (Phase 5), shaped exactly like the public serializer. */
   images: PropertyApiImage[]
   /** Admin-configured THE SPACE attribute cards, ordered by sort. */
@@ -107,6 +108,7 @@ function toProperty(item: PublicPropertyApiItem): Property {
     description: item.description,
     shortDescription: item.shortDescription,
     pricePerNightPaise: item.pricePerNightPaise,
+    discountedPricePerNightPaise: item.discountedPricePerNightPaise ?? null,
     images: item.images,
     image: mainImage ?? assets?.mainImage ?? null,
     gallery: dbGallery.length > 0 ? dbGallery : (assets?.gallery ?? []),

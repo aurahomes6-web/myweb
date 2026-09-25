@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { parseCouponInput } from '../src/lib/couponValidation.js'
 import {
   computeDiscountPaise,
+  computeStayPricing,
   computeStayTotal,
   couponRejectReason,
   formatINR,
@@ -248,6 +249,32 @@ function seedCoupon(
 
 test('computeStayTotal multiplies nightly rate by nights in paise', () => {
   assert.equal(computeStayTotal(300000, 3), 900000)
+})
+
+test('computeStayPricing uses the original rate when no discount is set', () => {
+  assert.deepStrictEqual(computeStayPricing(300000, null, 3), {
+    originalPricePaise: 900000,
+    effectivePricePaise: 900000,
+    propertyDiscountPaise: 0,
+    discountPaise: 0,
+    finalPricePaise: 900000,
+  })
+})
+
+test('computeStayPricing uses a valid discounted nightly rate for the effective total', () => {
+  assert.deepStrictEqual(computeStayPricing(300000, 240000, 3), {
+    originalPricePaise: 900000,
+    effectivePricePaise: 720000,
+    propertyDiscountPaise: 180000,
+    discountPaise: 180000,
+    finalPricePaise: 720000,
+  })
+})
+
+test('computeStayPricing safely falls back for an invalid stored discount', () => {
+  assert.equal(computeStayPricing(300000, 300000, 2).effectivePricePaise, 600000)
+  assert.equal(computeStayPricing(300000, 0, 2).effectivePricePaise, 600000)
+  assert.equal(computeStayPricing(300000, 350000, 2).effectivePricePaise, 600000)
 })
 
 test('PERCENTAGE discount is rounded and never exceeds the stay total', () => {

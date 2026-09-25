@@ -13,7 +13,7 @@ import type { PropertyUpdateInput } from '../lib/propertyValidation.js'
 import type { SpaceConfigInput } from '../lib/spaceValidation.js'
 import { collectConflicts, anyConflict, conflictMessage } from './overlapService.js'
 import { consumeCouponInTransaction } from './couponService.js'
-import { computeStayTotal } from './pricingService.js'
+import { computeStayPricing } from './pricingService.js'
 
 /**
  * Admin-only booking and Airbnb operations.
@@ -134,6 +134,7 @@ export interface AdminPropertyDto {
   location: string | null
   /** Nightly rate (excluding any promo offer), stored as integer paise. */
   pricePerNightPaise: number
+  discountedPricePerNightPaise: number | null
   images: AdminPropertyImageDto[]
   spaceAttributes: AdminSpaceAttributeDto[]
 }
@@ -232,7 +233,7 @@ const propertyFieldSelect = {
   id: true, slug: true, name: true, shortLabel: true, description: true,
   shortDescription: true, capacity: true, minGuests: true, bedrooms: true, beds: true,
   bathrooms: true, sqft: true, amenities: true, accent: true, visual: true,
-  location: true, pricePerNightPaise: true,
+  location: true, pricePerNightPaise: true, discountedPricePerNightPaise: true,
   images: {
     orderBy: { sort: 'asc' as const },
     select: { id: true, kind: true, sort: true, url: true, alt: true },
@@ -327,7 +328,12 @@ export async function updateBooking(
 
   const property = await client.property.findFirst({
     where: { OR: [{ id: input.propertyId }, { slug: input.propertyId }] },
-    select: { id: true, capacity: true, pricePerNightPaise: true },
+    select: {
+      id: true,
+      capacity: true,
+      pricePerNightPaise: true,
+      discountedPricePerNightPaise: true,
+    },
   })
   if (!property) throw new NotFoundError('Property not found.')
   if (input.guestCount > property.capacity) {
@@ -345,22 +351,27 @@ export async function updateBooking(
   // Server-authoritative pricing, identical rules to the public booking path:
   // the rate comes from the database and coupon rules are enforced atomically.
   const nights = nightsBetweenDates(toUtcDate(input.checkIn), toUtcDate(input.checkOut))
-  const originalPricePaise = computeStayTotal(property.pricePerNightPaise, nights)
+  const stayPricing = computeStayPricing(
+    property.pricePerNightPaise,
+    property.discountedPricePerNightPaise,
+    nights
+  )
 
   const booking = await client.$transaction(async (tx) => {
     await tx.guest.deleteMany({ where: { bookingId: id } })
     await tx.couponUsage.deleteMany({ where: { bookingId: id } })
 
-    let discountPaise = 0
+    let couponDiscountPaise = 0
     let couponId: string | null = null
     let couponCode: string | null = null
     if (input.couponCode) {
-      const consumed = await consumeCouponInTransaction(tx, input.couponCode, originalPricePaise)
+      const consumed = await consumeCouponInTransaction(tx, input.couponCode, stayPricing.effectivePricePaise)
       couponId = consumed.id
       couponCode = consumed.code
-      discountPaise = consumed.discountPaise
+      couponDiscountPaise = consumed.discountPaise
     }
-    const finalPricePaise = originalPricePaise - discountPaise
+    const discountPaise = stayPricing.propertyDiscountPaise + couponDiscountPaise
+    const finalPricePaise = stayPricing.effectivePricePaise - couponDiscountPaise
 
     const updated = await tx.booking.update({
       where: { id },
@@ -371,7 +382,7 @@ export async function updateBooking(
         guestCount: input.guestCount,
         primaryPhone: input.primaryPhone,
         notes: input.notes || null,
-        originalPricePaise,
+        originalPricePaise: stayPricing.originalPricePaise,
         discountPaise,
         finalPricePaise,
         couponId,
@@ -755,6 +766,7 @@ function serializePropertyRow(p: Record<string, unknown>): AdminPropertyDto {
     visual: p.visual as string,
     location: (p.location as string | null) ?? null,
     pricePerNightPaise: p.pricePerNightPaise as number,
+    discountedPricePerNightPaise: (p.discountedPricePerNightPaise as number | null) ?? null,
     images: ((p.images as Array<Record<string, unknown>> | null) ?? []).map((img) => ({
       id: img.id as string,
       kind: img.kind as string,
@@ -799,6 +811,7 @@ export async function updateProperty(
       visual: input.visual,
       location: input.location,
       pricePerNightPaise: input.pricePerNightPaise,
+      discountedPricePerNightPaise: input.discountedPricePerNightPaise,
     },
     select: propertyFieldSelect,
   })

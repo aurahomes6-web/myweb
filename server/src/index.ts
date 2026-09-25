@@ -10,6 +10,7 @@ import couponRoutes from './routes/coupons.js'
 import contactRoutes from './routes/contact.js'
 import paymentSettingsRoutes from './routes/paymentSettings.js'
 import homepageSettingsRoutes from './routes/homepageSettings.js'
+import marqueeNotificationRoutes from './routes/marqueeNotifications.js'
 import adminRoutes from './routes/admin.js'
 
 const app = express()
@@ -27,6 +28,7 @@ app.use('/api/coupons', couponRoutes)
 app.use('/api/contact', contactRoutes)
 app.use('/api/payment-settings', paymentSettingsRoutes)
 app.use('/api/homepage-settings', homepageSettingsRoutes)
+app.use('/api/marquee-notifications', marqueeNotificationRoutes)
 app.use('/api/admin', adminRoutes)
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

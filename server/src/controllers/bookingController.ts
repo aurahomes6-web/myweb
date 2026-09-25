@@ -23,7 +23,7 @@ import {
   NotFoundError,
 } from '../services/bookingTrackingService.js'
 import { consumeCouponInTransaction, CouponInvalidError } from '../services/couponService.js'
-import { computeStayTotal, CURRENCY, type PricingSnapshot } from '../services/pricingService.js'
+import { computeStayPricing, CURRENCY, type PricingSnapshot } from '../services/pricingService.js'
 
 const MAX_CODE_ATTEMPTS = 5
 const CONFLICT_MESSAGE = 'The selected property is no longer available for these dates.'
@@ -110,15 +110,24 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
             toUtcDate(input.checkIn),
             toUtcDate(input.checkOut)
           )
-          const originalPricePaise = computeStayTotal(property.pricePerNightPaise, nights)
-          let discountPaise = 0
+          const stayPricing = computeStayPricing(
+            property.pricePerNightPaise,
+            property.discountedPricePerNightPaise,
+            nights
+          )
+          let couponDiscountPaise = 0
           let coupon: { id: string; code: string } | null = null
           if (input.couponCode !== undefined) {
-            const consumed = await consumeCouponInTransaction(tx, input.couponCode, originalPricePaise)
+            const consumed = await consumeCouponInTransaction(
+              tx,
+              input.couponCode,
+              stayPricing.effectivePricePaise
+            )
             coupon = { id: consumed.id, code: consumed.code }
-            discountPaise = consumed.discountPaise
+            couponDiscountPaise = consumed.discountPaise
           }
-          const finalPricePaise = originalPricePaise - discountPaise
+          const discountPaise = stayPricing.propertyDiscountPaise + couponDiscountPaise
+          const finalPricePaise = stayPricing.effectivePricePaise - couponDiscountPaise
 
           const created = (await tx.booking.create({
             data: {
@@ -130,7 +139,7 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
               primaryPhone: input.primaryPhone,
               notes: input.notes || null,
               status: BookingStatus.CONFIRMED,
-              originalPricePaise,
+              originalPricePaise: stayPricing.originalPricePaise,
               discountPaise,
               finalPricePaise,
               couponId: coupon?.id ?? null,
@@ -167,7 +176,7 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
 
           const pricing: PricingSnapshot = {
             nights,
-            originalPricePaise,
+            originalPricePaise: stayPricing.originalPricePaise,
             discountPaise,
             finalPricePaise,
             currency: CURRENCY,
@@ -259,13 +268,13 @@ function buildNotificationPayload(
       gender: guest.gender,
       age: guest.age,
     })),
-    ...(booking.couponCode
+    ...((booking.couponCode || (booking.discountPaise ?? 0) > 0)
       ? {
           pricing: {
             originalPricePaise: booking.originalPricePaise ?? 0,
             discountPaise: booking.discountPaise ?? 0,
             finalPricePaise: booking.finalPricePaise ?? 0,
-            couponCode: booking.couponCode,
+            ...(booking.couponCode ? { couponCode: booking.couponCode } : {}),
           },
         }
       : {}),

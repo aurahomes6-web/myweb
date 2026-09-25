@@ -5,6 +5,7 @@ import { BookingsTab } from '@/components/admin/BookingsTab'
 import { AirbnbTab } from '@/components/admin/AirbnbTab'
 import { PropertiesTab } from '@/components/admin/PropertiesTab'
 import { HomepageSettingsTab } from '@/components/admin/HomepageSettingsTab'
+import { MarqueeNotificationsTab } from '@/components/admin/MarqueeNotificationsTab'
 import { CouponsTab } from '@/components/admin/CouponsTab'
 import { ContactTab } from '@/components/admin/ContactTab'
 import { CleanupTab } from '@/components/admin/CleanupTab'
@@ -20,6 +21,7 @@ const tabs = [
   { to: '/admin/airbnb', label: 'Airbnb', end: false },
   { to: '/admin/properties', label: 'Properties', end: false },
   { to: '/admin/homepage', label: 'Homepage', end: false },
+  { to: '/admin/marquee-notifications', label: 'Marquee', end: false },
   { to: '/admin/coupons', label: 'Coupons', end: false },
   { to: '/admin/contact', label: 'Contact', end: false },
   { to: '/admin/cleanup', label: 'Cleanup', end: false },
@@ -43,7 +45,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
     <div className="min-h-screen bg-surface">
       <header className="sticky top-0 z-30 border-b border-surface-300/40 bg-surface/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
               <img src="/logo.jpeg" alt="AURA HOMES" className="h-9 w-9 object-cover" />
             </div>
@@ -53,7 +55,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
             </div>
           </div>
 
-          <nav className="flex items-center gap-1 sm:gap-2">
+          <nav className="no-scrollbar flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto py-1 sm:gap-2">
             {tabs.map((tab) => (
               <NavLink
                 key={tab.to}
@@ -61,7 +63,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
                 end={tab.end}
                 className={({ isActive }) =>
                   cn(
-                    'rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition-colors',
+                    'shrink-0 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition-colors',
                     isActive
                       ? 'bg-gradient-to-r from-purple/25 to-cyan/25 text-text-primary ring-1 ring-purple/30'
                       : 'text-text-muted hover:text-text-primary'
@@ -71,9 +73,15 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
                 {tab.label}
               </NavLink>
             ))}
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="ml-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="ml-1 shrink-0"
+              aria-label="Sign out"
+            >
               <LogOut size={14} />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </nav>
         </div>
@@ -88,6 +96,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
           <Route path="airbnb" element={<AirbnbTab />} />
           <Route path="properties" element={<PropertiesTab />} />
           <Route path="homepage" element={<HomepageSettingsTab />} />
+          <Route path="marquee-notifications" element={<MarqueeNotificationsTab />} />
           <Route path="coupons" element={<CouponsTab />} />
           <Route path="contact" element={<ContactTab />} />
           <Route path="cleanup" element={<CleanupTab />} />
