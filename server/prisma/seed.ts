@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client.js'
 import { DEFAULT_CONTACT_SETTINGS } from '../src/services/contactService.js'
 import { DEFAULT_PAYMENT_SETTINGS } from '../src/services/paymentSettingsService.js'
+import { DEFAULT_HOMEPAGE_SETTINGS } from '../src/services/homepageSettingsService.js'
 
 const databaseUrl =
   process.env.DATABASE_URL ?? process.env.DIRECT_URL
@@ -122,6 +123,14 @@ async function main() {
       qrCodeUrl: '',
     },
   })
+  const homepageSettingsPromise = prisma.homepageSettings.upsert({
+    where: { id: 'single' },
+    update: {},
+    create: {
+      id: 'single',
+      ...DEFAULT_HOMEPAGE_SETTINGS,
+    },
+  })
 
   await prisma.$transaction([
     prisma.contactSettings.upsert({
@@ -135,6 +144,7 @@ async function main() {
       },
     }),
     paymentSettingsPromise,
+    homepageSettingsPromise,
   ])
   console.log(`Seeded ${count} properties + singleton settings rows.`)
 }

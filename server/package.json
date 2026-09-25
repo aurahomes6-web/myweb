@@ -8,7 +8,7 @@
     "build": "node ./node_modules/prisma/build/index.js generate && node ./node_modules/typescript/lib/tsc.js",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json --noEmit",
-    "test": "tsx --test tests/bookingCode.test.ts tests/dateRange.test.ts tests/bookingValidation.test.ts tests/notificationService.test.ts tests/airbnbValidation.test.ts tests/adminAuth.test.ts tests/propertyValidation.test.ts tests/adminService.test.ts tests/bookingPublicResponse.test.ts tests/cleanupRoutes.test.ts tests/pricingCoupons.test.ts tests/spaceValidation.test.ts tests/propertySpacePublic.test.ts tests/contactValidation.test.ts tests/contactService.test.ts tests/contactRoutes.test.ts tests/paymentValidation.test.ts tests/paymentNotification.test.ts tests/paymentService.test.ts tests/bookingTrackingService.test.ts tests/paymentRoutes.test.ts tests/bookingReportService.test.ts tests/bookingReportRoutes.test.ts tests/paymentSettingsService.test.ts tests/paymentSettingsRoutes.test.ts",
+    "test": "tsx --test tests/bookingCode.test.ts tests/dateRange.test.ts tests/bookingValidation.test.ts tests/notificationService.test.ts tests/airbnbValidation.test.ts tests/adminAuth.test.ts tests/propertyValidation.test.ts tests/adminService.test.ts tests/bookingPublicResponse.test.ts tests/cleanupRoutes.test.ts tests/pricingCoupons.test.ts tests/spaceValidation.test.ts tests/propertySpacePublic.test.ts tests/contactValidation.test.ts tests/contactService.test.ts tests/contactRoutes.test.ts tests/paymentValidation.test.ts tests/paymentNotification.test.ts tests/paymentService.test.ts tests/bookingTrackingService.test.ts tests/paymentRoutes.test.ts tests/bookingReportService.test.ts tests/bookingReportRoutes.test.ts tests/paymentSettingsService.test.ts tests/paymentSettingsRoutes.test.ts tests/homepageSettingsService.test.ts tests/homepageSettingsRoutes.test.ts",
     "test:live": "tsx scripts/smoke-booking.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -27,7 +27,8 @@
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "multer": "^2.4.0",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

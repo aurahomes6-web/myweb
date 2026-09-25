@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button'
 import { BookingsTab } from '@/components/admin/BookingsTab'
 import { AirbnbTab } from '@/components/admin/AirbnbTab'
 import { PropertiesTab } from '@/components/admin/PropertiesTab'
+import { HomepageSettingsTab } from '@/components/admin/HomepageSettingsTab'
 import { CouponsTab } from '@/components/admin/CouponsTab'
 import { ContactTab } from '@/components/admin/ContactTab'
 import { CleanupTab } from '@/components/admin/CleanupTab'
@@ -18,6 +19,7 @@ const tabs = [
   { to: '/admin/payment-settings', label: 'Payment Settings', end: false },
   { to: '/admin/airbnb', label: 'Airbnb', end: false },
   { to: '/admin/properties', label: 'Properties', end: false },
+  { to: '/admin/homepage', label: 'Homepage', end: false },
   { to: '/admin/coupons', label: 'Coupons', end: false },
   { to: '/admin/contact', label: 'Contact', end: false },
   { to: '/admin/cleanup', label: 'Cleanup', end: false },
@@ -85,6 +87,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
           <Route path="payment-settings" element={<PaymentSettingsTab />} />
           <Route path="airbnb" element={<AirbnbTab />} />
           <Route path="properties" element={<PropertiesTab />} />
+          <Route path="homepage" element={<HomepageSettingsTab />} />
           <Route path="coupons" element={<CouponsTab />} />
           <Route path="contact" element={<ContactTab />} />
           <Route path="cleanup" element={<CleanupTab />} />

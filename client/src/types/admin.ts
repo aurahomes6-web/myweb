@@ -223,6 +223,12 @@ export interface AdminContactSettings {
   description: string
 }
 
+export interface AdminHomepageSettings {
+  visualImageUrl: string | null
+  visualImageAlt: string
+  visualSource: 'custom' | 'fallback'
+}
+
 /**
  * Direct-UPI payment settings editable from the Payment Settings admin tab.
  * `qrCodeUrl` is the ACTIVE QR asset (a Vercel Blob URL once one is uploaded,

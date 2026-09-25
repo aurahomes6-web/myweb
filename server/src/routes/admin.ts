@@ -42,6 +42,12 @@ import {
   adminUpdatePaymentSettingsHandler,
   adminUploadPaymentQrHandler,
 } from '../controllers/paymentSettingsController.js'
+import {
+  adminDeleteHomepageVisualHandler,
+  adminGetHomepageSettingsHandler,
+  adminUpdateHomepageSettingsHandler,
+  adminUploadHomepageVisualHandler,
+} from '../controllers/homepageSettingsController.js'
 
 const config = adminConfig(process.env)
 const auth = requireConfiguredAdmin(config)
@@ -109,6 +115,17 @@ router.get('/reports/bookings', auth, requireCsrfHeader, bookingsReportHandler)
 // Global contact configuration (single-row singleton shown in the public footer).
 router.get('/contact', auth, getContactSettingsHandler)
 router.put('/contact', requireCsrfHeader, auth, updateContactSettingsHandler)
+
+router.get('/homepage-settings', auth, adminGetHomepageSettingsHandler)
+router.put('/homepage-settings', requireCsrfHeader, auth, adminUpdateHomepageSettingsHandler)
+router.post(
+  '/homepage-settings/visual',
+  requireCsrfHeader,
+  auth,
+  uploadImageMiddleware,
+  adminUploadHomepageVisualHandler
+)
+router.delete('/homepage-settings/visual', requireCsrfHeader, auth, adminDeleteHomepageVisualHandler)
 
 // Direct-UPI payment settings (payee name/id/phone + QR asset) editable from
 // the Admin panel. All three endpoints reuse the existing admin auth: reads

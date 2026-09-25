@@ -8,6 +8,7 @@ import type {
   AdminContactSettings,
   AdminCoupon,
   AdminCouponPayload,
+  AdminHomepageSettings,
   AdminImageSlot,
   AdminPayment,
   AdminPaymentSettings,
@@ -317,6 +318,45 @@ export async function updateAdminContactSettings(
     body: JSON.stringify(payload),
   })
   return body.contact
+}
+
+export async function fetchAdminHomepageSettings(): Promise<AdminHomepageSettings> {
+  const body = await request<{ settings: AdminHomepageSettings }>('/homepage-settings')
+  return body.settings
+}
+
+export async function updateAdminHomepageSettings(
+  visualImageAlt: string
+): Promise<AdminHomepageSettings> {
+  const body = await request<{ settings: AdminHomepageSettings }>('/homepage-settings', {
+    method: 'PUT',
+    body: JSON.stringify({ visualImageAlt }),
+  })
+  return body.settings
+}
+
+export async function uploadAdminHomepageVisual(file: File): Promise<AdminHomepageSettings> {
+  const form = new FormData()
+  form.append('image', file)
+
+  const response = await fetch(`${ADMIN_ENDPOINT}/homepage-settings/visual`, {
+    method: 'POST',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'include',
+    body: form,
+  })
+  const json: unknown = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw parseAdminError(json, 'The homepage visual could not be uploaded. Please try again.')
+  }
+  return (json as { settings: AdminHomepageSettings }).settings
+}
+
+export async function resetAdminHomepageVisual(): Promise<AdminHomepageSettings> {
+  const body = await request<{ settings: AdminHomepageSettings }>('/homepage-settings/visual', {
+    method: 'DELETE',
+  })
+  return body.settings
 }
 
 // ── UPI payments (Phase 7) ──────────────────────────────────────────────────

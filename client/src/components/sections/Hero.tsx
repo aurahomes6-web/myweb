@@ -2,14 +2,15 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Calendar, ChevronDown, Sparkles } from 'lucide-react'
 import GlowBackground from '@/components/ui/GlowBackground'
-import PropertyVisual from '@/components/visuals/PropertyVisual'
-import { imageAssets } from '@/config/images'
+import { HomepageVisual } from '@/components/sections/HomepageVisual'
+import { useHomepageSettings } from '@/services/homepageSettings'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
 export default function Hero() {
   const reduced = useReducedMotion()
+  const { settings } = useHomepageSettings()
 
   const line = {
     hidden: { opacity: 0, y: 34 },
@@ -146,11 +147,9 @@ export default function Hero() {
             <div className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-gradient-to-br from-purple/[0.14] via-transparent to-cyan/[0.14] blur-2xl" />
 
             <div className="animated-gradient-border relative aspect-[4/5] overflow-hidden rounded-panel shadow-card">
-              <PropertyVisual
-                image={imageAssets.hero}
-                accent="purple"
-                variant="moon"
-                label="Aura Cozy Penthouse — interior"
+              <HomepageVisual
+                imageUrl={settings.visualImageUrl}
+                imageAlt={settings.visualImageAlt}
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface/70 via-transparent to-transparent" />
 

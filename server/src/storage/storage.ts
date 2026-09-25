@@ -1,4 +1,4 @@
-import { del, put } from '@vercel/blob'
+import { del, head, put } from '@vercel/blob'
 
 /**
  * Persistent object storage for property photos, isolated behind `ObjectStorage`
@@ -29,6 +29,7 @@ export interface StoredBlob {
 
 export interface ObjectStorage {
   put(key: string, buffer: Buffer, contentType: string): Promise<StoredBlob>
+  getUrl?(key: string): Promise<string | null>
   delete(key: string): Promise<void>
 }
 
@@ -59,6 +60,15 @@ export class VercelBlobStorage implements ObjectStorage {
     return { url: blob.url, key: blob.pathname.replace(/^\//, '') }
   }
 
+  async getUrl(key: string): Promise<string | null> {
+    try {
+      const blob = await head(key.replace(/^\//, ''), { token: this.token })
+      return blob.url
+    } catch {
+      return null
+    }
+  }
+
   async delete(key: string): Promise<void> {
     await del(key.replace(/^\//, ''), { token: this.token })
   }
@@ -74,6 +84,10 @@ export class MemoryStorage implements ObjectStorage {
     const stored = { url: `memory://${key}?v=${this.counter}`, key }
     this.objects.set(key, stored)
     return stored
+  }
+
+  async getUrl(key: string): Promise<string | null> {
+    return this.objects.get(key)?.url ?? null
   }
 
   async delete(key: string): Promise<void> {

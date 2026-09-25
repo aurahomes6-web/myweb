@@ -142,6 +142,11 @@ export interface ContactInfo {
   description: string
 }
 
+export interface HomepageSettingsInfo {
+  visualImageUrl: string | null
+  visualImageAlt: string
+}
+
 /**
  * Direct-UPI payment details fetched from GET /api/payment-settings and shown
  * on the customer payment page (payee name, UPI id, phone and the active QR).

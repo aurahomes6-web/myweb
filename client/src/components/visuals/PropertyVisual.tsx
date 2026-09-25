@@ -8,6 +8,7 @@ interface PropertyVisualProps {
   variant: VisualKind
   label?: string
   className?: string
+  onImageError?: () => void
 }
 
 function MoonScene({ accent }: { accent: AccentPalette }) {
@@ -229,6 +230,7 @@ export default function PropertyVisual({
   variant,
   label,
   className,
+  onImageError,
 }: PropertyVisualProps) {
   const palette = accentPalettes[accent]
 
@@ -237,6 +239,7 @@ export default function PropertyVisual({
       <img
         src={image}
         alt={label ?? 'AURA HOMES property'}
+        onError={onImageError}
         className={cn('h-full w-full object-cover', className)}
       />
     )
