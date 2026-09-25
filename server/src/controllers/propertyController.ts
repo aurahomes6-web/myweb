@@ -36,10 +36,7 @@ export interface PublicProperty {
   capacity: number
   minGuests: number
   maxGuests: number
-  bedrooms: number
-  beds: number | null
-  bathrooms: number
-  sqft: number
+  isActive: boolean
   amenities: string[]
   accent: string
   visual: string
@@ -64,10 +61,11 @@ interface PropertyRow {
   shortDescription: string
   capacity: number
   minGuests: number
-  bedrooms: number
-  beds: number | null
-  bathrooms: number
-  sqft: number
+  isActive?: boolean
+  bedrooms?: number | null
+  beds?: number | null
+  bathrooms?: number | null
+  sqft?: number | null
   amenities: string[]
   accent: string
   visual: string
@@ -89,10 +87,7 @@ export function serializeProperty(property: PropertyRow): PublicProperty {
     capacity: property.capacity,
     minGuests: property.minGuests,
     maxGuests: property.capacity,
-    bedrooms: property.bedrooms,
-    beds: property.beds,
-    bathrooms: property.bathrooms,
-    sqft: property.sqft,
+    isActive: property.isActive !== false,
     amenities: property.amenities,
     accent: property.accent,
     visual: property.visual,

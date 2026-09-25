@@ -30,11 +30,11 @@ export interface Property {
   /** Structured capacity range (THE SPACE). `maxGuests` mirrors `capacity`. */
   minGuests: number
   maxGuests: number
-  bedrooms: number
-  /** Physical bed count; only populated when the API provides it. */
+  isActive?: boolean
+  bedrooms?: number
   beds?: number
-  bathrooms: number
-  sqft: number
+  bathrooms?: number
+  sqft?: number
   amenities: string[]
   location: string | null
   /** Nightly rate in integer paise (₹3,000 → 300000). Phase 5. */

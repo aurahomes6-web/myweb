@@ -81,7 +81,7 @@ export default function PropertyDetailPage() {
             className="flex items-center gap-3 rounded-full border border-surface-300/50 bg-surface-100/60 px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-text-muted"
           >
             <span className="h-2 w-2 rounded-full" style={{ background: accent.bright, boxShadow: `0 0 10px ${accent.main}` }} />
-            Ready for your dates
+            {property.isActive === false ? 'Coming soon' : 'Ready for your dates'}
           </div>
         </div>
       </div>

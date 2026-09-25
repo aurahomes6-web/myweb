@@ -10,6 +10,7 @@ import { MarqueeNotificationsTab } from '@/components/admin/MarqueeNotifications
 import { CouponsTab } from '@/components/admin/CouponsTab'
 import { ContactTab } from '@/components/admin/ContactTab'
 import { CleanupTab } from '@/components/admin/CleanupTab'
+import { BlockDatesTab } from '@/components/admin/BlockDatesTab'
 import { PaymentsTab } from '@/components/admin/PaymentsTab'
 import { PaymentSettingsTab } from '@/components/admin/PaymentSettingsTab'
 import { adminLogout } from '@/services/admin'
@@ -21,6 +22,7 @@ const tabs = [
   { to: '/admin/payment-settings', label: 'Payment Settings', end: false },
   { to: '/admin/airbnb', label: 'Airbnb', end: false },
   { to: '/admin/properties', label: 'Properties', end: false },
+  { to: '/admin/block-dates', label: 'Block Dates', end: false },
   { to: '/admin/homepage', label: 'Homepage', end: false },
   { to: '/admin/marquee-notifications', label: 'Marquee', end: false },
   { to: '/admin/coupons', label: 'Coupons', end: false },
@@ -234,7 +236,8 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
           <Route path="payments" element={<PaymentsTab />} />
           <Route path="payment-settings" element={<PaymentSettingsTab />} />
           <Route path="airbnb" element={<AirbnbTab />} />
-          <Route path="properties" element={<PropertiesTab />} />
+           <Route path="properties" element={<PropertiesTab />} />
+           <Route path="block-dates" element={<BlockDatesTab />} />
           <Route path="homepage" element={<HomepageSettingsTab />} />
           <Route path="marquee-notifications" element={<MarqueeNotificationsTab />} />
           <Route path="coupons" element={<CouponsTab />} />

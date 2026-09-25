@@ -7,6 +7,7 @@ import { prisma } from '../lib/db.js'
 import { validateCreateBooking } from '../lib/bookingValidation.js'
 import { validateAdminAirbnb } from '../lib/airbnbValidation.js'
 import { parsePropertyUpdate } from '../lib/propertyValidation.js'
+import { parseBookingDateBlock } from '../lib/bookingDateBlockValidation.js'
 import { parseSpaceConfig } from '../lib/spaceValidation.js'
 import { parseCouponInput } from '../lib/couponValidation.js'
 import { parseContactSettings } from '../lib/contactValidation.js'
@@ -32,16 +33,19 @@ import {
   clearAirbnb,
   clearAirbnbBlockedDates,
   clearAllBookingData,
-  clearBookings,
-  createAirbnb,
+   clearBookings,
+   createAirbnb,
+   createBookingDateBlock,
+   deleteBookingDateBlock,
   deleteAirbnb,
   deleteProperty,
   getAirbnb,
   getBooking,
   getPropertySpace,
-  listAirbnb,
-  listBookings,
-  listProperties,
+   listAirbnb,
+   listBookings,
+   listBookingDateBlocks,
+   listProperties,
   updateAirbnb,
   updateBooking,
   updateProperty,
@@ -244,6 +248,27 @@ export const updatePropertySpaceHandler = wrap(async (req: Request, res: Respons
   if (!result.ok) return void validationError(res, result.issues)
   const space = await updatePropertySpace(prisma, id, result.value)
   res.json({ space })
+})
+
+export const listBookingDateBlocksHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const blocks = await listBookingDateBlocks(prisma, id)
+  res.json({ blocks })
+})
+
+export const createBookingDateBlockHandler = wrap(async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const result = parseBookingDateBlock(req.body)
+  if (!result.ok) return void validationError(res, result.issues)
+  const block = await createBookingDateBlock(prisma, id, result.value)
+  res.status(201).json({ block })
+})
+
+export const deleteBookingDateBlockHandler = wrap(async (req: Request, res: Response) => {
+  const propertyId = typeof req.params.id === 'string' ? req.params.id : ''
+  const blockId = typeof req.params.blockId === 'string' ? req.params.blockId : ''
+  await deleteBookingDateBlock(prisma, propertyId, blockId)
+  res.json({ ok: true })
 })
 
 // ── global contact settings ────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/prisma/client.js'
+import { Prisma, type PrismaClient } from '../generated/prisma/client.js'
 import {
   AirbnbStatus,
   BookingStatus,
@@ -10,8 +10,14 @@ import { maskAadhaar } from '../lib/bookingValidation.js'
 import type { CreateBookingInput, BookingGuestInput } from '../lib/bookingValidation.js'
 import type { AirbnbDetailsInput, AirbnbGuestInput } from '../lib/airbnbValidation.js'
 import type { PropertyUpdateInput } from '../lib/propertyValidation.js'
+import type { BookingDateBlockInput } from '../lib/bookingDateBlockValidation.js'
 import type { SpaceConfigInput } from '../lib/spaceValidation.js'
-import { collectConflicts, anyConflict, conflictMessage } from './overlapService.js'
+import {
+  collectConflicts,
+  anyConflict,
+  conflictMessage,
+  lockPropertyForNormalBooking,
+} from './overlapService.js'
 import { consumeCouponInTransaction } from './couponService.js'
 import { computeStayPricing } from './pricingService.js'
 
@@ -36,6 +42,12 @@ export class ConflictError extends Error {
 }
 export class BadRequestError extends Error {
   override readonly name = 'BadRequestError' as const
+}
+
+const MAX_DATE_BLOCK_TRANSACTION_ATTEMPTS = 3
+
+function isSerializableTransactionFailure(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034'
 }
 
 // ── DTOs ───────────────────────────────────────────────────────────────────
@@ -124,10 +136,11 @@ export interface AdminPropertyDto {
   shortDescription: string
   capacity: number
   minGuests: number
-  bedrooms: number
+  bedrooms: number | null
   beds: number | null
-  bathrooms: number
-  sqft: number
+  bathrooms: number | null
+  sqft: number | null
+  isActive: boolean
   amenities: string[]
   accent: string
   visual: string
@@ -143,6 +156,13 @@ export interface AdminPropertySpaceDto {
   minGuests: number
   maxGuests: number
   attributes: AdminSpaceAttributeDto[]
+}
+
+export interface AdminBookingDateBlockDto {
+  id: string
+  propertyId: string
+  startDate: string
+  endDate: string
 }
 
 // ── row shapes (match each query's select/include) ─────────────────────────
@@ -232,7 +252,7 @@ const airbnbGuestInclude = {
 const propertyFieldSelect = {
   id: true, slug: true, name: true, shortLabel: true, description: true,
   shortDescription: true, capacity: true, minGuests: true, bedrooms: true, beds: true,
-  bathrooms: true, sqft: true, amenities: true, accent: true, visual: true,
+  bathrooms: true, sqft: true, isActive: true, amenities: true, accent: true, visual: true,
   location: true, pricePerNightPaise: true, discountedPricePerNightPaise: true,
   images: {
     orderBy: { sort: 'asc' as const },
@@ -331,11 +351,13 @@ export async function updateBooking(
     select: {
       id: true,
       capacity: true,
+      isActive: true,
       pricePerNightPaise: true,
       discountedPricePerNightPaise: true,
     },
   })
   if (!property) throw new NotFoundError('Property not found.')
+  if (property.isActive === false) throw new BadRequestError('This home is inactive and cannot accept bookings.')
   if (input.guestCount > property.capacity) {
     throw new BadRequestError(`This property sleeps up to ${property.capacity} guests.`)
   }
@@ -345,6 +367,7 @@ export async function updateBooking(
     checkIn: input.checkIn,
     checkOut: input.checkOut,
     excludeBookingId: id,
+    includeBookingDateBlock: true,
   })
   if (anyConflict(conflicts)) throw new ConflictError(conflictMessage(conflicts))
 
@@ -755,13 +778,14 @@ function serializePropertyRow(p: Record<string, unknown>): AdminPropertyDto {
     shortLabel: p.shortLabel as string,
     description: p.description as string,
     shortDescription: p.shortDescription as string,
-    capacity: p.capacity as number,
-    minGuests: (p.minGuests as number | undefined) ?? 1,
-    bedrooms: p.bedrooms as number,
-    beds: (p.beds as number | null) ?? null,
-    bathrooms: p.bathrooms as number,
-    sqft: p.sqft as number,
-    amenities: p.amenities as string[],
+     capacity: p.capacity as number,
+     minGuests: (p.minGuests as number | undefined) ?? 1,
+     bedrooms: (p.bedrooms as number | null) ?? null,
+     beds: (p.beds as number | null) ?? null,
+     bathrooms: (p.bathrooms as number | null) ?? null,
+     sqft: (p.sqft as number | null) ?? null,
+     isActive: (p.isActive as boolean | undefined) ?? true,
+     amenities: p.amenities as string[],
     accent: p.accent as string,
     visual: p.visual as string,
     location: (p.location as string | null) ?? null,
@@ -800,13 +824,14 @@ export async function updateProperty(
       name: input.name,
       shortLabel: input.shortLabel,
       description: input.description,
-      shortDescription: input.shortDescription,
-      capacity: input.capacity,
-      bedrooms: input.bedrooms,
-      beds: input.beds,
-      bathrooms: input.bathrooms,
-      sqft: input.sqft,
-      amenities: input.amenities,
+       shortDescription: input.shortDescription,
+       capacity: input.capacity,
+       ...(input.bedrooms === undefined ? {} : { bedrooms: input.bedrooms }),
+       ...(input.beds === undefined ? {} : { beds: input.beds }),
+       ...(input.bathrooms === undefined ? {} : { bathrooms: input.bathrooms }),
+       ...(input.sqft === undefined ? {} : { sqft: input.sqft }),
+       isActive: input.isActive ?? true,
+       amenities: input.amenities,
       accent: input.accent,
       visual: input.visual,
       location: input.location,
@@ -816,6 +841,79 @@ export async function updateProperty(
     select: propertyFieldSelect,
   })
   return serializePropertyRow(updated)
+}
+
+export async function listBookingDateBlocks(
+  client: PrismaClient,
+  propertyId: string
+): Promise<AdminBookingDateBlockDto[]> {
+  const property = await client.property.findUnique({ where: { id: propertyId }, select: { id: true } })
+  if (!property) throw new NotFoundError('Property not found.')
+  const blocks = await client.bookingDateBlock.findMany({
+    where: { propertyId },
+    orderBy: [{ startDate: 'asc' }, { endDate: 'asc' }],
+    select: { id: true, propertyId: true, startDate: true, endDate: true },
+  })
+  return blocks.map((block) => ({
+    id: block.id,
+    propertyId: block.propertyId,
+    startDate: toDateKey(block.startDate),
+    endDate: toDateKey(block.endDate),
+  }))
+}
+
+export async function createBookingDateBlock(
+  client: PrismaClient,
+  propertyId: string,
+  input: BookingDateBlockInput
+): Promise<AdminBookingDateBlockDto> {
+  const startDate = toUtcDate(input.startDate)
+  const endDate = toUtcDate(input.endDate)
+  for (let attempt = 0; attempt < MAX_DATE_BLOCK_TRANSACTION_ATTEMPTS; attempt++) {
+    try {
+      const block = await client.$transaction(
+        async (tx) => {
+          await lockPropertyForNormalBooking(tx, propertyId)
+          const property = await tx.property.findUnique({ where: { id: propertyId }, select: { id: true } })
+          if (!property) throw new NotFoundError('Property not found.')
+          const overlapping = await tx.bookingDateBlock.findFirst({
+            where: {
+              propertyId,
+              startDate: { lte: endDate },
+              endDate: { gte: startDate },
+            },
+            select: { id: true },
+          })
+          if (overlapping) throw new ConflictError('This date range overlaps an existing normal-booking block.')
+          return tx.bookingDateBlock.create({
+            data: { propertyId, startDate, endDate },
+            select: { id: true, propertyId: true, startDate: true, endDate: true },
+          })
+        },
+        { isolationLevel: 'Serializable', maxWait: 5000, timeout: 15000 }
+      )
+      return {
+        id: block.id,
+        propertyId: block.propertyId,
+        startDate: toDateKey(block.startDate),
+        endDate: toDateKey(block.endDate),
+      }
+    } catch (error) {
+      if (!isSerializableTransactionFailure(error) || attempt >= MAX_DATE_BLOCK_TRANSACTION_ATTEMPTS - 1) {
+        throw error
+      }
+    }
+  }
+  throw new Error('Unable to create the booking date block.')
+}
+
+export async function deleteBookingDateBlock(
+  client: PrismaClient,
+  propertyId: string,
+  blockId: string
+): Promise<void> {
+  const result = await client.bookingDateBlock.deleteMany({ where: { id: blockId, propertyId } })
+  if (result.count === 0) throw new NotFoundError('Booking date block not found.')
 }
 
 // ── THE SPACE ───────────────────────────────────────────────────────────────

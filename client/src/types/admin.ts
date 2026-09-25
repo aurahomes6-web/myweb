@@ -118,10 +118,11 @@ export interface AdminProperty {
   capacity: number
   minGuests: number
   maxGuests: number
-  bedrooms: number
-  beds: number | null
-  bathrooms: number
-  sqft: number
+  isActive?: boolean
+  bedrooms?: number | null
+  beds?: number | null
+  bathrooms?: number | null
+  sqft?: number | null
   amenities: string[]
   accent: string
   visual: string
@@ -133,6 +134,18 @@ export interface AdminProperty {
   images: AdminPropertyImage[]
   /** Ordered THE SPACE attribute cards for this home. */
   spaceAttributes: AdminSpaceAttribute[]
+}
+
+export interface AdminBookingDateBlock {
+  id: string
+  propertyId: string
+  startDate: string
+  endDate: string
+}
+
+export interface AdminBookingDateBlockPayload {
+  startDate: string
+  endDate: string
 }
 
 export interface AdminGuestPayload {

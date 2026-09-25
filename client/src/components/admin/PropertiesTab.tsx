@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BedDouble, IndianRupee, Loader2, Pencil, Ruler, Trash2, Users } from 'lucide-react'
+import { IndianRupee, Loader2, Pencil, Trash2, Users } from 'lucide-react'
 import type { AdminProperty } from '@/types/admin'
 import { useAdminProperties } from '@/hooks/useAdminProperties'
 import { deleteAdminProperty } from '@/services/admin'
@@ -116,17 +116,13 @@ export function PropertiesTab() {
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <p className="inline-flex items-center gap-1.5 text-text-muted">
-                  <Users size={13} className="text-cyan-bright" /> {property.capacity} guests
-                </p>
-                <p className="inline-flex items-center gap-1.5 text-text-muted">
-                  <BedDouble size={13} className="text-purple-bright" /> {property.bedrooms} bed • {property.beds ?? '—'}
-                </p>
-                <p className="inline-flex items-center gap-1.5 text-text-muted">
-                  <Ruler size={13} className="text-magenta-bright" /> {property.sqft} sqft
-                </p>
-                <PropertyNightlyRate property={property} />
-                <p className="inline-flex items-center gap-1.5 text-text-muted">· {property.bathrooms} bath</p>
+                 <p className="inline-flex items-center gap-1.5 text-text-muted">
+                   <Users size={13} className="text-cyan-bright" /> {property.capacity} guests
+                 </p>
+                 <PropertyNightlyRate property={property} />
+                 <p className={property.isActive === false ? 'text-amber-300' : 'text-emerald-300'}>
+                   {property.isActive === false ? 'Deactive' : 'Active'}
+                 </p>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-1.5">

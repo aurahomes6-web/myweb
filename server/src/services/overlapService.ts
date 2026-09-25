@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/prisma/client.js'
+import { Prisma, type PrismaClient } from '../generated/prisma/client.js'
 import { AirbnbStatus, BookingStatus } from '../generated/prisma/enums.js'
 import { toUtcDate } from '../lib/dateUtils.js'
 
@@ -13,12 +13,15 @@ import { toUtcDate } from '../lib/dateUtils.js'
  * reservation does not conflict with itself.
  */
 
+type DatabaseClient = PrismaClient | Prisma.TransactionClient
+
 export interface ConflictScope {
   propertyId: string
   checkIn: string
   checkOut: string
   excludeBookingId?: string
   excludeAirbnbId?: string
+  includeBookingDateBlock?: boolean
 }
 
 export interface ConflictCheck {
@@ -28,7 +31,7 @@ export interface ConflictCheck {
 }
 
 export async function collectConflicts(
-  client: PrismaClient,
+  client: DatabaseClient,
   scope: ConflictScope
 ): Promise<ConflictCheck> {
   const from = toUtcDate(scope.checkIn)
@@ -65,7 +68,25 @@ export async function collectConflicts(
     select: { id: true },
   })
 
-  return { booking: booking !== null, airbnb: airbnb !== null, manual: manual !== null }
+  const manualBlock = scope.includeBookingDateBlock
+    ? await client.bookingDateBlock.findFirst({
+        where: {
+          propertyId: scope.propertyId,
+          startDate: { lt: to },
+          endDate: { gte: from },
+        },
+        select: { id: true },
+      })
+    : null
+
+  return { booking: booking !== null, airbnb: airbnb !== null, manual: manual !== null || manualBlock !== null }
+}
+
+export async function lockPropertyForNormalBooking(
+  client: DatabaseClient,
+  propertyId: string
+): Promise<void> {
+  await client.$queryRaw`SELECT "id" FROM "Property" WHERE "id" = ${propertyId} FOR UPDATE`
 }
 
 export function anyConflict(conflicts: ConflictCheck): boolean {

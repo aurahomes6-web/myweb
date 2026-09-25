@@ -78,6 +78,21 @@ export default function AvailabilityCard({ property }: AvailabilityCardProps) {
     setCheckOut(range.checkOut)
   }
 
+  if (property.isActive === false) {
+    return (
+      <section id="availability" className="card-surface flex flex-col overflow-hidden rounded-panel">
+        <div className="border-b border-surface-300/30 px-6 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-purple-bright">Reserve Your Stay</p>
+        </div>
+        <div className="flex flex-col items-start gap-3 p-6">
+          <CalendarX2 size={22} className="text-amber-300" />
+          <p className="font-display text-lg font-semibold text-text-primary">Coming soon</p>
+          <p className="text-sm text-text-muted">This home is not accepting bookings yet. Please check back soon.</p>
+        </div>
+      </section>
+    )
+  }
+
   const fieldBase =
     'flex w-full flex-col gap-1 rounded-2xl border border-surface-300/60 bg-surface-100/50 px-4 py-3 text-left transition-colors hover:border-purple/40'
 

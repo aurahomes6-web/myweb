@@ -26,9 +26,7 @@ const properties = [
     shortDescription:
       'Panoramic views, a private terrace, and curated interiors above the city.',
     capacity: 4,
-    bedrooms: 2,
-    bathrooms: 2,
-    sqft: 1200,
+    isActive: true,
     amenities: [
       'Free Wi-Fi',
       'Smart TV',
@@ -52,9 +50,7 @@ const properties = [
     shortDescription:
       'Sophisticated open-plan living with designer furnishings and ambient light.',
     capacity: 4,
-    bedrooms: 2,
-    bathrooms: 2,
-    sqft: 1150,
+    isActive: true,
     amenities: [
       'Free Wi-Fi',
       'Smart TV',
@@ -78,9 +74,7 @@ const properties = [
     shortDescription:
       'Contemporary warmth with rich textures and a homelike, peaceful atmosphere.',
     capacity: 6,
-    bedrooms: 3,
-    bathrooms: 2,
-    sqft: 1500,
+    isActive: true,
     amenities: [
       'Free Wi-Fi',
       'Smart TV',

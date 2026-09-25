@@ -10,7 +10,7 @@ export interface AvailabilityParams {
   guests: number
 }
 
-export type AvailabilityReason = 'ok' | 'not_found' | 'invalid_dates' | 'guests_exceeded' | 'unavailable'
+export type AvailabilityReason = 'ok' | 'not_found' | 'invalid_dates' | 'guests_exceeded' | 'unavailable' | 'inactive'
 
 export interface AvailabilityResult {
   available: boolean
@@ -62,6 +62,22 @@ async function hasBlockedDate(
   return blocked !== null
 }
 
+async function hasBookingDateBlock(
+  propertyId: string,
+  checkIn: string,
+  checkOut: string
+): Promise<boolean> {
+  const block = await prisma.bookingDateBlock.findFirst({
+    where: {
+      propertyId,
+      startDate: { lt: toUtcDate(checkOut) },
+      endDate: { gte: toUtcDate(checkIn) },
+    },
+    select: { id: true },
+  })
+  return block !== null
+}
+
 export async function checkAvailability(params: AvailabilityParams): Promise<AvailabilityResult> {
   const nights = nightsBetween(params.checkIn, params.checkOut)
   if (nights <= 0) {
@@ -71,6 +87,9 @@ export async function checkAvailability(params: AvailabilityParams): Promise<Ava
   const property = await resolveProperty(params.propertyId)
   if (!property) {
     return { available: false, nights, reason: 'not_found' }
+  }
+  if (!property.isActive) {
+    return { available: false, nights, reason: 'inactive' }
   }
 
   if (params.guests > property.capacity) {
@@ -82,6 +101,10 @@ export async function checkAvailability(params: AvailabilityParams): Promise<Ava
   }
 
   if (await hasBlockedDate(property.id, params.checkIn, params.checkOut)) {
+    return { available: false, nights, reason: 'unavailable' }
+  }
+
+  if (await hasBookingDateBlock(property.id, params.checkIn, params.checkOut)) {
     return { available: false, nights, reason: 'unavailable' }
   }
 
@@ -98,7 +121,7 @@ export async function getBlockedDates(
   to: string
 ): Promise<string[]> {
   const property = await resolveProperty(propertyId)
-  if (!property) return []
+  if (!property || !property.isActive) return []
 
   const fromDate = toUtcDate(from)
   const toDate = toUtcDate(to)
@@ -110,6 +133,20 @@ export async function getBlockedDates(
   })
   for (const row of explicit) {
     blocked.add(toDateKey(row.date))
+  }
+
+  const bookingBlocks = await prisma.bookingDateBlock.findMany({
+    where: {
+      propertyId: property.id,
+      startDate: { lte: toDate },
+      endDate: { gte: fromDate },
+    },
+    select: { startDate: true, endDate: true },
+  })
+  for (const row of bookingBlocks) {
+    const start = toDateKey(row.startDate) > from ? toDateKey(row.startDate) : from
+    const end = toDateKey(row.endDate) < to ? toDateKey(row.endDate) : to
+    for (let key = start; key <= end; key = addDays(key, 1)) blocked.add(key)
   }
 
   const bookings = await prisma.booking.findMany({

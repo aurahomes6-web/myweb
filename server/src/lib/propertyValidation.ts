@@ -8,14 +8,15 @@ export interface PropertyUpdateInput {
   description: string
   shortDescription: string
   capacity: number
-  bedrooms: number
-  beds: number | null
-  bathrooms: number
-  sqft: number
+  bedrooms?: number | null
+  beds?: number | null
+  bathrooms?: number | null
+  sqft?: number | null
   amenities: string[]
   accent: string
   visual: string
   location: string | null
+  isActive?: boolean
   /** Nightly rate in integer paise (₹3,000 → 300000). Required server-side. */
   pricePerNightPaise: number
   discountedPricePerNightPaise: number | null
@@ -57,10 +58,17 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
   const location = optionalText(body.location, 200)
 
   const capacity = parsePositiveInt(body.capacity)
-  const bedrooms = parsePositiveInt(body.bedrooms)
-  const bathrooms = parsePositiveInt(body.bathrooms)
-  const sqft = parsePositiveInt(body.sqft)
-  const bedsRaw = body.beds === undefined || body.beds === null || body.beds === ''
+  const isActive = body.isActive === undefined ? true : body.isActive === true
+  const bedrooms = body.bedrooms === undefined || body.bedrooms === null || body.bedrooms === ''
+    ? null
+    : parsePositiveInt(body.bedrooms)
+  const bathrooms = body.bathrooms === undefined || body.bathrooms === null || body.bathrooms === ''
+    ? null
+    : parsePositiveInt(body.bathrooms)
+  const sqft = body.sqft === undefined || body.sqft === null || body.sqft === ''
+    ? null
+    : parsePositiveInt(body.sqft)
+  const beds = body.beds === undefined || body.beds === null || body.beds === ''
     ? null
     : parsePositiveInt(body.beds)
   const pricePerNightPaise = parsePositiveInt(body.pricePerNightPaise)
@@ -87,10 +95,19 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
   }
 
   if (capacity === null) issues.push({ field: 'capacity', message: 'Capacity must be a positive integer.' })
-  if (bedrooms === null) issues.push({ field: 'bedrooms', message: 'Bedrooms must be a positive integer.' })
-  if (bathrooms === null) issues.push({ field: 'bathrooms', message: 'Bathrooms must be a positive integer.' })
-  if (sqft === null) issues.push({ field: 'sqft', message: 'Square footage must be a positive integer.' })
-  if (bedsRaw === null && body.beds !== undefined && body.beds !== null && body.beds !== '') {
+  if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
+    issues.push({ field: 'isActive', message: 'isActive must be true or false.' })
+  }
+  if (bedrooms === null && body.bedrooms !== undefined && body.bedrooms !== null && body.bedrooms !== '') {
+    issues.push({ field: 'bedrooms', message: 'Bedrooms must be a positive integer.' })
+  }
+  if (bathrooms === null && body.bathrooms !== undefined && body.bathrooms !== null && body.bathrooms !== '') {
+    issues.push({ field: 'bathrooms', message: 'Bathrooms must be a positive integer.' })
+  }
+  if (sqft === null && body.sqft !== undefined && body.sqft !== null && body.sqft !== '') {
+    issues.push({ field: 'sqft', message: 'Square footage must be a positive integer.' })
+  }
+  if (beds === null && body.beds !== undefined && body.beds !== null && body.beds !== '') {
     issues.push({ field: 'beds', message: 'Beds must be a positive integer.' })
   }
   if (pricePerNightPaise === null) {
@@ -146,14 +163,15 @@ export function parsePropertyUpdate(body: unknown): PropertyUpdateResult {
       description: description as string,
       shortDescription: shortDescription as string,
       capacity: capacity as number,
-      bedrooms: bedrooms as number,
-      beds: bedsRaw,
-      bathrooms: bathrooms as number,
-      sqft: sqft as number,
+      bedrooms,
+      beds,
+      bathrooms,
+      sqft,
       amenities,
       accent: accent as string,
       visual: visual as string,
       location,
+      isActive,
       pricePerNightPaise: pricePerNightPaise as number,
       discountedPricePerNightPaise,
     },

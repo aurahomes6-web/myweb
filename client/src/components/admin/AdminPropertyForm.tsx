@@ -49,10 +49,7 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
   const [shortLabel, setShortLabel] = useState(property.shortLabel)
   const [shortDescription, setShortDescription] = useState(property.shortDescription)
   const [description, setDescription] = useState(property.description)
-  const [bedrooms, setBedrooms] = useState(String(property.bedrooms))
-  const [beds, setBeds] = useState(property.beds === null ? '' : String(property.beds))
-  const [bathrooms, setBathrooms] = useState(String(property.bathrooms))
-  const [sqft, setSqft] = useState(String(property.sqft))
+  const [isActive, setIsActive] = useState(property.isActive !== false)
   const [amenities, setAmenities] = useState(property.amenities.join('\n'))
   const [accent, setAccent] = useState<string>(ACCENTS.includes(property.accent as (typeof ACCENTS)[number]) ? property.accent : 'purple')
   const [visual, setVisual] = useState<string>(VISUALS.includes(property.visual as (typeof VISUALS)[number]) ? property.visual : 'moon')
@@ -92,10 +89,6 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
     if (!name.trim()) errors.push('Name is required.')
     if (!shortLabel.trim()) errors.push('Short label is required.')
     if (!shortDescription.trim()) errors.push('A short description is required.')
-    if (numberOr(bedrooms) < 0) errors.push('Bedrooms cannot be negative.')
-    if (beds.trim() !== '' && numberOr(beds, -1) < 0) errors.push('Beds cannot be negative.')
-    if (numberOr(bathrooms) < 0) errors.push('Bathrooms cannot be negative.')
-    if (numberOr(sqft, -1) <= 0) errors.push('Interior size must be greater than 0.')
     const pricePaise = parseINRToPaise(priceInput)
     if (pricePaise === null || pricePaise <= 0) errors.push('Nightly price must be a positive amount in ₹.')
     const hasDiscountedPrice = discountedPriceInput.trim() !== ''
@@ -174,10 +167,7 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
         shortDescription: shortDescription.trim(),
         description: description.trim(),
         capacity: maxGuestCount,
-        bedrooms: numberOr(bedrooms),
-        beds: beds.trim() === '' ? null : numberOr(beds),
-        bathrooms: numberOr(bathrooms),
-        sqft: numberOr(sqft),
+        isActive,
         amenities: amenities.split('\n').map((line) => line.trim()).filter(Boolean),
         accent: (ACCENTS as readonly string[]).includes(accent) ? accent : 'purple',
         visual: (VISUALS as readonly string[]).includes(visual) ? visual : 'moon',
@@ -246,18 +236,6 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
             <TextArea value={description} onChange={(event) => setDescription(event.target.value)} disabled={submitting} />
           </Field>
 
-          <Field label="Bedrooms">
-            <TextInput type="number" min={0} value={bedrooms} onChange={(event) => setBedrooms(event.target.value.replace(/\D/g, ''))} disabled={submitting} />
-          </Field>
-          <Field label="Beds" hint="Optional physical bed count (shown when provided).">
-            <TextInput type="number" min={0} value={beds} onChange={(event) => setBeds(event.target.value.replace(/\D/g, ''))} disabled={submitting} />
-          </Field>
-          <Field label="Bathrooms">
-            <TextInput type="number" min={0} value={bathrooms} onChange={(event) => setBathrooms(event.target.value.replace(/\D/g, ''))} disabled={submitting} />
-          </Field>
-          <Field label="Interior size (sqft)">
-            <TextInput type="number" min={1} value={sqft} onChange={(event) => setSqft(event.target.value.replace(/\D/g, ''))} disabled={submitting} />
-          </Field>
           <Field label="Original price per night (₹)" hint="Regular rate in rupees, saved as paise.">
             <TextInput
               type="text"
@@ -267,6 +245,12 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
               placeholder="3,000"
               disabled={submitting}
             />
+          </Field>
+          <Field label="Availability" hint="Inactive homes remain visible as Coming Soon and cannot accept bookings.">
+            <Select value={isActive ? 'active' : 'inactive'} onChange={(event) => setIsActive(event.target.value === 'active')} disabled={submitting}>
+              <option value="active">Active</option>
+              <option value="inactive">Deactive</option>
+            </Select>
           </Field>
           <Field label="Discounted price per night (₹)" hint="Optional. Must be lower than the original price. Leave blank for no discount.">
             <TextInput
@@ -406,7 +390,7 @@ export function AdminPropertyForm({ property, onSaved, onCancel }: AdminProperty
 
             {spaceAttributes.length === 0 && (
               <p className="rounded-xl border border-dashed border-surface-300/50 bg-surface-100/30 px-4 py-5 text-center text-xs leading-relaxed text-text-muted">
-                No space attributes yet. Add bedrooms, bathrooms, interior size, kitchen or anything else below.
+                No space attributes yet. Add kitchen, terrace, views, or anything else below.
                 Until you add some, customers only see the capacity card.
               </p>
             )}

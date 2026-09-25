@@ -173,12 +173,18 @@ describe('PropertyCard — dynamic THE SPACE attributes', () => {
 })
 
 describe('PropertyCard — nightly pricing', () => {
-  it('shows only the original rate when no discount is configured', () => {
+  it('shows the original rate when no discount is configured', () => {
     const html = render(makeProperty())
     expect(html).toContain('₹3,000')
     expect(html).not.toContain('line-through')
     expect(html).not.toContain('% off')
     expect(html).not.toContain('Offer price')
+  })
+
+  it('shows Coming Soon and removes availability CTA for inactive homes', () => {
+    const html = render(makeProperty({ isActive: false }))
+    expect(html).toContain('Coming soon')
+    expect(html).not.toContain('Check Availability')
   })
 
   it('shows the effective rate with the original rate crossed out', () => {

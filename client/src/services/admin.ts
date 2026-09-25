@@ -4,6 +4,8 @@ import type {
   AdminAirbnbPayload,
   AdminApiErrorShape,
   AdminBooking,
+  AdminBookingDateBlock,
+  AdminBookingDateBlockPayload,
   AdminCleanupResult,
   AdminContactSettings,
   AdminCoupon,
@@ -166,6 +168,34 @@ export async function updateAdminProperty(id: string, payload: AdminPropertyPayl
     body: JSON.stringify(payload),
   })
   return body.property
+}
+
+export async function fetchAdminBookingDateBlocks(id: string): Promise<AdminBookingDateBlock[]> {
+  const body = await request<{ blocks: AdminBookingDateBlock[] }>(
+    `/properties/${encodeURIComponent(id)}/date-blocks`
+  )
+  return body.blocks
+}
+
+export async function createAdminBookingDateBlock(
+  id: string,
+  payload: AdminBookingDateBlockPayload
+): Promise<AdminBookingDateBlock> {
+  const body = await request<{ block: AdminBookingDateBlock }>(
+    `/properties/${encodeURIComponent(id)}/date-blocks`,
+    { method: 'POST', body: JSON.stringify(payload) }
+  )
+  return body.block
+}
+
+export async function deleteAdminBookingDateBlock(
+  id: string,
+  blockId: string
+): Promise<void> {
+  await request<{ ok: true }>(
+    `/properties/${encodeURIComponent(id)}/date-blocks/${encodeURIComponent(blockId)}`,
+    { method: 'DELETE' }
+  )
 }
 
 // ── THE SPACE (properties) ──────────────────────────────────────────────────

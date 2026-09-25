@@ -19,9 +19,10 @@ model Property {
   capacity           Int
   /// Minimum guests accepted for this home (THE SPACE capacity range).
   minGuests          Int                   @default(1)
-  bedrooms           Int
-  bathrooms          Int
-  sqft               Int
+  bedrooms           Int?
+  bathrooms          Int?
+  sqft               Int?
+  isActive           Boolean             @default(true)
   amenities          String[]
   accent             String
   visual             String
@@ -37,6 +38,7 @@ model Property {
   bookings           Booking[]
   images             PropertyImage[]
   spaceAttributes    PropertySpaceAttribute[]
+  bookingDateBlocks  BookingDateBlock[]
 
   @@index([slug])
 }
@@ -162,6 +164,18 @@ model Guest {
   booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([bookingId])
+}
+
+model BookingDateBlock {
+  id         String   @id @default(cuid())
+  propertyId String
+  startDate  DateTime @db.Date
+  endDate    DateTime @db.Date
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, startDate, endDate])
 }
 
 model BlockedDate {

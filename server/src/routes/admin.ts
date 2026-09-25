@@ -8,7 +8,9 @@ import {
   clearAllBookingDataHandler,
   clearBookingsHandler,
   createAirbnbHandler,
-  createCouponHandler,
+   createCouponHandler,
+   createBookingDateBlockHandler,
+   deleteBookingDateBlockHandler,
   deleteAirbnbHandler,
   deleteCouponHandler,
   deletePropertyHandler,
@@ -17,8 +19,9 @@ import {
   getBookingHandler,
   getContactSettingsHandler,
   getPropertySpaceHandler,
-  listAirbnbHandler,
-  listBookingsHandler,
+   listAirbnbHandler,
+   listBookingDateBlocksHandler,
+   listBookingsHandler,
   listCouponsHandler,
   listPaymentsHandler,
   listPropertiesHandler,
@@ -86,6 +89,15 @@ router.delete('/properties/:id', requireCsrfHeader, auth, deletePropertyHandler)
 // THE SPACE: per-property capacity range + ordered attribute cards.
 router.get('/properties/:id/space', auth, getPropertySpaceHandler)
 router.put('/properties/:id/space', requireCsrfHeader, auth, updatePropertySpaceHandler)
+
+router.get('/properties/:id/date-blocks', auth, listBookingDateBlocksHandler)
+router.post('/properties/:id/date-blocks', requireCsrfHeader, auth, createBookingDateBlockHandler)
+router.delete(
+  '/properties/:id/date-blocks/:blockId',
+  requireCsrfHeader,
+  auth,
+  deleteBookingDateBlockHandler
+)
 
 // Phase 5: photo upload/delete + promo coupons (auth + CSRF everywhere).
 router.post(

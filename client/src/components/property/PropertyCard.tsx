@@ -128,7 +128,12 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
           </div>
         </div>
 
-        <div className="mt-7 flex flex-1 flex-col items-end gap-2.5">
+        <div className="flex flex-1 flex-col items-end gap-2.5">
+          {property.isActive === false && (
+            <span className="w-full rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
+              Coming soon
+            </span>
+          )}
           <Link
             to={`/properties/${property.slug}`}
             className={cn(
@@ -141,16 +146,18 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
             View Details
             <ArrowRight size={15} className="transition-transform duration-300 group-hover/btn:translate-x-1" />
           </Link>
-          <Link
-            to={`/properties/${property.slug}#availability`}
-            className={cn(
-              'inline-flex w-full items-center justify-center gap-2 rounded-full border border-surface-300/70 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-text-secondary',
-              'transition-all duration-300 hover:border-purple/45 hover:text-text-primary hover:shadow-glow-purple'
-            )}
-          >
-            <MapPin size={14} className="opacity-90" />
-            Check Availability
-          </Link>
+          {property.isActive !== false && (
+            <Link
+              to={`/properties/${property.slug}#availability`}
+              className={cn(
+                'inline-flex w-full items-center justify-center gap-2 rounded-full border border-surface-300/70 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-text-secondary',
+                'transition-all duration-300 hover:border-purple/45 hover:text-text-primary hover:shadow-glow-purple'
+              )}
+            >
+              <MapPin size={14} className="opacity-90" />
+              Check Availability
+            </Link>
+          )}
         </div>
       </div>
     </motion.article>

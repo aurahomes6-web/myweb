@@ -13,6 +13,7 @@ import {
   clearAllBookingData,
   clearBookings,
   createAirbnb,
+  createBookingDateBlock,
   deleteAirbnb,
   deleteProperty,
   getAirbnb,
@@ -78,6 +79,7 @@ class FakeDb {
   airbnbs: Array<Record<string, unknown>> = []
   airbnbGuests: Array<Record<string, unknown>> = []
   blockedDates: Array<Record<string, unknown>> = []
+  bookingDateBlocks: Array<Record<string, unknown>> = []
   spaceAttributes: Array<Record<string, unknown>> = []
   couponUsage: any = {
     deleteMany: async ({ where }: any = {}) => ({ count: 0 }),
@@ -89,6 +91,12 @@ class FakeDb {
 
   $transaction = (async (fn: (tx: never) => unknown) =>
     (fn as (tx: FakeDb) => Promise<unknown>)(this)) as unknown as PrismaClient['$transaction']
+
+  queryRawCalls: unknown[][] = []
+  $queryRaw = async (...args: unknown[]) => {
+    this.queryRawCalls.push(args)
+    return []
+  }
 
   private propertyFor(propertyId: string): Record<string, unknown> | null {
     return this.properties.find((p) => p.id === propertyId) ?? null
@@ -388,6 +396,30 @@ class FakeDb {
     count: async ({ where }: any = {}) => this.airbnbs.filter((r) => matches(where, r)).length,
   }
 
+  bookingDateBlock: any = {
+    findMany: async ({ where }: any = {}) =>
+      this.bookingDateBlocks.filter((r) => matches(where, r)).map((r) => ({ ...r })),
+    findFirst: async ({ where }: any = {}) => {
+      const row = this.bookingDateBlocks.find((r) => matches(where, r)) ?? null
+      return row ? { ...row } : null
+    },
+    create: async ({ data }: any = {}) => {
+      const row = {
+        id: nextId('booking-date-block'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      }
+      this.bookingDateBlocks.push(row)
+      return { ...row }
+    },
+    deleteMany: async ({ where }: any = {}) => {
+      const doomed = this.bookingDateBlocks.filter((r) => matches(where, r))
+      this.bookingDateBlocks = this.bookingDateBlocks.filter((r) => !matches(where, r))
+      return { count: doomed.length }
+    },
+  }
+
   // ── blocked dates ──
   blockedDate: any = {
     findFirst: async ({ where }: any = {}) => {
@@ -428,6 +460,7 @@ function seedProperty(fake: FakeDb, overrides: Record<string, unknown> = {}) {
     shortDescription: 'Cosy penthouse.',
     capacity: 3,
     minGuests: 1,
+    isActive: true,
     bedrooms: 1,
     beds: 2,
     bathrooms: 1,
@@ -831,7 +864,7 @@ test('updateAirbnb lets the reservation number be cleared on an assigned record'
   assert.equal(fake.blockedDates.length, 2)
 })
 
-test('updateBooking replaces guest records and keeps cancelled status intact', async () => {
+test('admin can update a normal booking when dates are available', async () => {
   const fake = makeDb()
   seedProperty(fake)
   const booking = seedBooking(fake)
@@ -852,6 +885,71 @@ test('updateBooking replaces guest records and keeps cancelled status intact', a
   assert.equal(fake.bookingGuests.filter((g) => g.bookingId === booking.id).length, 2)
   const names = fake.bookingGuests.filter((g) => g.bookingId === booking.id).map((g) => g.fullName).sort()
   assert.deepStrictEqual(names, ['Asha Rao', 'New Guest'])
+})
+
+test('admin cannot update a normal booking into a manually blocked range', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  const booking = seedBooking(fake)
+  await createBookingDateBlock(asClient(fake), 'prop-1', {
+    startDate: '2026-10-20',
+    endDate: '2026-10-22',
+  })
+
+  await assert.rejects(
+    () => updateBooking(asClient(fake), booking.id, {
+      propertyId: 'prop-1',
+      checkIn: '2026-10-21',
+      checkOut: '2026-10-23',
+      guestCount: 2,
+      primaryPhone: '9812345678',
+      guests: [{ fullName: 'Asha', aadhaarNumber: '123456789012', gender: 'FEMALE' as const, age: 34 }],
+    }),
+    (err: unknown) => err instanceof ConflictError
+  )
+})
+
+test('admin cannot update a normal booking onto an inactive property', async () => {
+  const fake = makeDb()
+  seedProperty(fake, { isActive: false })
+  const booking = seedBooking(fake)
+
+  await assert.rejects(
+    () => updateBooking(asClient(fake), booking.id, {
+      propertyId: 'prop-1',
+      checkIn: '2026-10-20',
+      checkOut: '2026-10-22',
+      guestCount: 2,
+      primaryPhone: '9812345678',
+      guests: [{ fullName: 'Asha', aadhaarNumber: '123456789012', gender: 'FEMALE' as const, age: 34 }],
+    }),
+    (err: unknown) => err instanceof BadRequestError
+  )
+})
+
+test('Airbnb reservations remain unaffected by manual BookingDateBlock rows', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+  await createBookingDateBlock(asClient(fake), 'prop-1', {
+    startDate: '2026-10-01',
+    endDate: '2026-10-03',
+  })
+
+  const reservation = await createAirbnb(asClient(fake), airbnbBody())
+  assert.equal(reservation.status, 'ACTIVE')
+  assert.equal(fake.blockedDates.length, 2)
+})
+
+test('booking date block creation acquires the property row lock', async () => {
+  const fake = makeDb()
+  seedProperty(fake)
+
+  await createBookingDateBlock(asClient(fake), 'prop-1', {
+    startDate: '2026-10-01',
+    endDate: '2026-10-03',
+  })
+
+  assert.equal(fake.queryRawCalls.length, 1)
 })
 
 test('updateBooking snapshots the discounted effective stay total', async () => {

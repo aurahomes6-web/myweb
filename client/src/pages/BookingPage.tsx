@@ -7,8 +7,6 @@ import {
   CalendarDays,
   CalendarX2,
   Users,
-  BedDouble,
-  Bath,
   Lock,
   Loader2,
   Ticket,
@@ -57,7 +55,7 @@ function PropertyPicker() {
         </p>
 
         <div className="mt-12 flex flex-col gap-5">
-          {items.map((property) => {
+          {items.filter((property) => property.isActive !== false).map((property) => {
             const palette = accentPalettes[property.accent]
             return (
               <Link
@@ -83,8 +81,6 @@ function PropertyPicker() {
                   </h2>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted">
                     <span className="inline-flex items-center gap-1.5"><Users size={13} style={{ color: palette.main }} />{property.capacity} guests</span>
-                    <span className="inline-flex items-center gap-1.5"><BedDouble size={13} style={{ color: palette.main }} />{property.bedrooms} bed</span>
-                    <span className="inline-flex items-center gap-1.5"><Bath size={13} style={{ color: palette.main }} />{property.bathrooms} bath</span>
                   </div>
                 </div>
                 <ArrowRight
@@ -353,6 +349,18 @@ export default function BookingPage() {
 
   if (isMissing || !property) {
     return <NotFoundContent />
+  }
+
+  if (property.isActive === false) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center px-5 text-center">
+        <h1 className="font-display text-3xl font-bold text-text-primary">Coming soon</h1>
+        <p className="mt-3 text-sm text-text-muted">This home is not accepting bookings yet. Please check back soon.</p>
+        <Link to={`/properties/${property.slug}`} className="mt-7 text-sm text-purple-bright hover:text-text-primary">
+          Back to property details
+        </Link>
+      </div>
+    )
   }
 
   const guests = Math.min(property.capacity, Math.max(1, Number(guestsParam) || 2))

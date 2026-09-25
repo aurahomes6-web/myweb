@@ -31,6 +31,20 @@ test('parses a complete valid property payload', () => {
   assert.equal(result.value.discountedPricePerNightPaise, null)
 })
 
+test('preserves an explicit inactive property state', () => {
+  const body = baseProperty()
+  body.isActive = false
+  const result = parsePropertyUpdate(body)
+  assert.ok(result.ok)
+  assert.equal(result.value.isActive, false)
+})
+
+test('defaults an omitted active state to true', () => {
+  const result = parsePropertyUpdate(baseProperty())
+  assert.ok(result.ok)
+  assert.equal(result.value.isActive, true)
+})
+
 test('accepts a discounted nightly rate below the original rate', () => {
   const body = baseProperty()
   body.discountedPricePerNightPaise = 200000

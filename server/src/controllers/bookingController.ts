@@ -11,6 +11,7 @@ import {
 } from '../lib/bookingValidation.js'
 import { isUtrReference } from '../lib/paymentValidation.js'
 import { resolveProperty } from '../services/availabilityService.js'
+import { lockPropertyForNormalBooking } from '../services/overlapService.js'
 import { generateBookingCode } from '../lib/bookingCode.js'
 import {
   buildWhatsAppMessage,
@@ -27,11 +28,19 @@ import { computeStayPricing, CURRENCY, type PricingSnapshot } from '../services/
 
 const MAX_CODE_ATTEMPTS = 5
 const CONFLICT_MESSAGE = 'The selected property is no longer available for these dates.'
+const INACTIVE_MESSAGE = 'This home is temporarily unavailable for booking.'
 
 class BookingConflictError extends Error {
   constructor() {
     super(CONFLICT_MESSAGE)
     this.name = 'BookingConflictError'
+  }
+}
+
+class BookingInactiveError extends Error {
+  constructor() {
+    super(INACTIVE_MESSAGE)
+    this.name = 'BookingInactiveError'
   }
 }
 
@@ -83,6 +92,10 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
     try {
       return await prisma.$transaction(
         async (tx) => {
+          await lockPropertyForNormalBooking(tx, property.id)
+          const freshProperty = await tx.property.findUnique({ where: { id: property.id } })
+
+          if (!freshProperty || !freshProperty.isActive) throw new BookingInactiveError()
           const clash = await tx.booking.findFirst({
             where: {
               propertyId: property.id,
@@ -103,6 +116,16 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
           })
           if (blocked) throw new BookingConflictError()
 
+          const manualBlock = await tx.bookingDateBlock.findFirst({
+            where: {
+              propertyId: property.id,
+              startDate: { lt: toUtcDate(input.checkOut) },
+              endDate: { gte: toUtcDate(input.checkIn) },
+            },
+            select: { id: true },
+          })
+          if (manualBlock) throw new BookingConflictError()
+
           // Server-authoritative pricing: the price always comes from the
           // database and the coupon from the coupon table — never from the
           // client. A failed booking rolls back any coupon usage too.
@@ -111,8 +134,8 @@ async function createBookingRecord(input: CreateBookingInput, property: Property
             toUtcDate(input.checkOut)
           )
           const stayPricing = computeStayPricing(
-            property.pricePerNightPaise,
-            property.discountedPricePerNightPaise,
+            freshProperty.pricePerNightPaise,
+            freshProperty.discountedPricePerNightPaise,
             nights
           )
           let couponDiscountPaise = 0
@@ -341,6 +364,11 @@ export async function createBookingHandler(req: Request, res: Response) {
       return res
         .status(409)
         .json({ error: 'PROPERTY_UNAVAILABLE', message: CONFLICT_MESSAGE })
+    }
+    if (err instanceof BookingInactiveError) {
+      return res
+        .status(409)
+        .json({ error: 'PROPERTY_UNAVAILABLE', message: INACTIVE_MESSAGE })
     }
     if (err instanceof CouponInvalidError) {
       const errorByReason: Record<string, string> = {

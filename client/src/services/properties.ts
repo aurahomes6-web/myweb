@@ -18,7 +18,7 @@ import type {
  * The catalogue that previously lived only in `client/src/data/properties.ts`
  * is now editable by admins, so the public store is loaded from the API:
  *
- *   GET /api/properties  → DB-driven property list (incl. `beds`)
+ *   GET /api/properties  → DB-driven property list
  *
  * The static `data/properties.ts` file stays as the offline fallback so the
  * site keeps working (and renders instantly) even if the API is slow or down.
@@ -35,10 +35,7 @@ interface PublicPropertyApiItem {
   capacity: number
   minGuests: number
   maxGuests: number
-  bedrooms: number
-  beds: number | null
-  bathrooms: number
-  sqft: number
+  isActive: boolean
   amenities: string[]
   accent: string
   visual: string
@@ -117,10 +114,7 @@ function toProperty(item: PublicPropertyApiItem): Property {
     capacity: item.capacity,
     minGuests: item.minGuests,
     maxGuests: item.maxGuests,
-    bedrooms: item.bedrooms,
-    beds: item.beds ?? undefined,
-    bathrooms: item.bathrooms,
-    sqft: item.sqft,
+    isActive: item.isActive !== false,
     amenities: item.amenities,
     location: item.location,
     spaceAttributes: item.spaceAttributes ?? [],
