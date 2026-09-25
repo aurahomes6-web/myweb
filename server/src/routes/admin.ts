@@ -58,6 +58,18 @@ import {
   adminReorderMarqueeNotificationsHandler,
   adminUpdateMarqueeNotificationHandler,
 } from '../controllers/marqueeNotificationController.js'
+import {
+  exportDetailsExcelHandler,
+  exportDetailsPdfHandler,
+  listDetailsHandler,
+} from '../controllers/detailsController.js'
+import {
+  createManagerChecklistItemHandler,
+  deleteManagerChecklistItemHandler,
+  listManagerChecklistHandler,
+  reorderManagerChecklistHandler,
+  updateManagerChecklistItemHandler,
+} from '../controllers/adminManagerController.js'
 
 const config = adminConfig(process.env)
 const auth = requireConfiguredAdmin(config)
@@ -130,6 +142,32 @@ router.post('/payments/:id/reject', requireCsrfHeader, auth, rejectPaymentHandle
 // cross-origin top-level navigation can never silently download it. Auth runs
 // first so unauthenticated callers get 401 and only real admins hit CSRF.
 router.get('/reports/bookings', auth, requireCsrfHeader, bookingsReportHandler)
+
+// Admin → Details: a read-only reporting view over NORMAL bookings and AIRBNB
+// reservations. Exposes full Aadhaar, so the downloads carry the same
+// session + CSRF protection as the existing booking report.
+router.get('/details', auth, listDetailsHandler)
+router.get('/details/export/excel', auth, requireCsrfHeader, exportDetailsExcelHandler)
+router.get('/details/export/pdf', auth, requireCsrfHeader, exportDetailsPdfHandler)
+
+// Admin → Manager: checklist CONFIGURATION only. This configures the tasks
+// managers tick; it is not a link or a door into the manager panel itself, which
+// stays unlinked and is reached only by typing /manager.
+router.get('/manager/checklist/:propertyId', auth, listManagerChecklistHandler)
+router.post('/manager/checklist/:propertyId', requireCsrfHeader, auth, createManagerChecklistItemHandler)
+router.put('/manager/checklist/:propertyId/reorder', requireCsrfHeader, auth, reorderManagerChecklistHandler)
+router.patch(
+  '/manager/checklist/:propertyId/:itemId',
+  requireCsrfHeader,
+  auth,
+  updateManagerChecklistItemHandler
+)
+router.delete(
+  '/manager/checklist/:propertyId/:itemId',
+  requireCsrfHeader,
+  auth,
+  deleteManagerChecklistItemHandler
+)
 
 // Global contact configuration (single-row singleton shown in the public footer).
 router.get('/contact', auth, getContactSettingsHandler)

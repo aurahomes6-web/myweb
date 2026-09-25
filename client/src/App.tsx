@@ -13,6 +13,7 @@ import TrackBookingPage from '@/pages/TrackBookingPage'
 import AirbnbBookingPage from '@/pages/AirbnbBookingPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import AdminPage from '@/pages/AdminPage'
+import ManagerPage from '@/pages/ManagerPage'
 
 function AppShell() {
   const location = useLocation()
@@ -51,7 +52,10 @@ export default function App() {
       <ScrollManager />
       <div className="min-h-screen bg-surface">
         <Routes>
+          {/* /admin and /manager both sit OUTSIDE the public AppShell. /manager is
+              intentionally unlinked — the manager types the path directly. */}
           <Route path="/admin/*" element={<AdminPage />} />
+          <Route path="/manager/*" element={<ManagerPage />} />
           <Route path="/*" element={<AppShell />} />
         </Routes>
       </div>

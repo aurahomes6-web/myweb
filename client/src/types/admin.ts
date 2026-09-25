@@ -221,6 +221,38 @@ export interface AdminApiErrorShape {
   details?: Array<{ field: string; message: string }>
 }
 
+/**
+ * A manager checklist task as configured from Admin → Manager.
+ *
+ * `deletedAt` marks a soft-deleted task: it no longer appears for managers but
+ * its historical completion records are retained, which is what
+ * `completionCount` reports.
+ */
+export interface AdminManagerChecklistItem {
+  id: string
+  propertyId: string
+  title: string
+  description: string | null
+  sortOrder: number
+  isActive: boolean
+  deletedAt: string | null
+  createdAt: string
+  updatedAt: string
+  completionCount: number
+}
+
+export interface AdminManagerChecklistItemInput {
+  title: string
+  description?: string | null
+  isActive?: boolean
+}
+
+export interface AdminManagerChecklistItemUpdate {
+  title?: string
+  description?: string | null
+  isActive?: boolean
+}
+
 /** Result of a Database Cleanup action (counters of removed rows). */
 export interface AdminCleanupResult {
   deletedBookings: number

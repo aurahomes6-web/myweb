@@ -18,6 +18,9 @@ vi.mock('@/components/admin/MarqueeNotificationsTab', () => ({ MarqueeNotificati
 vi.mock('@/components/admin/CouponsTab', () => ({ CouponsTab: () => <div>Coupons tab</div> }))
 vi.mock('@/components/admin/ContactTab', () => ({ ContactTab: () => <div>Contact tab</div> }))
 vi.mock('@/components/admin/CleanupTab', () => ({ CleanupTab: () => <div>Cleanup tab</div> }))
+vi.mock('@/components/admin/BlockDatesTab', () => ({ BlockDatesTab: () => <div>Block dates tab</div> }))
+vi.mock('@/components/admin/DetailsTab', () => ({ DetailsTab: () => <div>Details tab</div> }))
+vi.mock('@/components/admin/ManagerTab', () => ({ ManagerTab: () => <div>Manager tab</div> }))
 
 function renderShell() {
   return render(
@@ -35,6 +38,44 @@ afterEach(() => {
 })
 
 describe('AdminShell navigation', () => {
+  it('lists every section in the agreed order, ending with sign out', async () => {
+    renderShell()
+    fireEvent.click(screen.getByRole('button', { name: 'Open admin menu' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Admin navigation' })
+    const navigation = within(dialog).getByRole('navigation', { name: 'Admin sections' })
+    // Order is part of the requirement, not an accident of the JSX.
+    expect([...navigation.querySelectorAll('a, button')].map((node) => node.textContent)).toEqual([
+      'Bookings',
+      'Payments',
+      'Payment Settings',
+      'Airbnb',
+      'Properties',
+      'Homepage',
+      'Marquee',
+      'Coupons',
+      'Contact',
+      'Cleanup',
+      'Block Dates',
+      'Details',
+      'Manager',
+      'Sign out',
+    ])
+  })
+
+  it('never links to the manager panel from the admin navigation', async () => {
+    renderShell()
+    fireEvent.click(screen.getByRole('button', { name: 'Open admin menu' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Admin navigation' })
+    // "Manager" here configures the checklist. The manager panel at /manager is
+    // reached by typing the path, so it must not appear as a link.
+    expect(within(dialog).getByRole('link', { name: 'Manager' }).getAttribute('href')).toBe(
+      '/admin/manager'
+    )
+    expect(dialog.querySelector('a[href="/manager"]')).toBeNull()
+  })
+
   it('provides every section, sign out, and a clear active item in the mobile menu', async () => {
     renderShell()
     const openButton = screen.getByRole('button', { name: 'Open admin menu' })
@@ -53,6 +94,9 @@ describe('AdminShell navigation', () => {
       'Coupons',
       'Contact',
       'Cleanup',
+      'Block Dates',
+      'Details',
+      'Manager',
       'Sign out',
     ]) {
       expect(within(navigation).getByText(label)).toBeTruthy()

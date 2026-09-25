@@ -40,9 +40,78 @@ model Property {
   images             PropertyImage[]
   spaceAttributes    PropertySpaceAttribute[]
   bookingDateBlocks  BookingDateBlock[]
+  managerChecklistItems      ManagerChecklistItem[]
+  managerChecklistCompletions ManagerChecklistCompletion[]
 
   @@index([slug])
   @@index([sortOrder])
+}
+
+/// A house manager account. Separate from `Property` and from the admin
+/// session (ADMIN_* env credentials): manager sign-in is a real credential
+/// check against this table, so /admin and /api/admin stay unreachable for a
+/// manager and /api/manager stays unreachable for an admin.
+model ManagerUser {
+  id           String                       @id @default(cuid())
+  username     String                       @unique
+  /// `scrypt$N$r$p$saltHex$hashHex` — see lib/managerAuth.ts. Plaintext is
+  /// never stored, logged or returned.
+  passwordHash String
+  displayName  String?
+  isActive     Boolean                      @default(true)
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
+  completions  ManagerChecklistCompletion[]
+
+  @@index([isActive])
+}
+
+/// An admin-defined manager checklist task, scoped to ONE home. Definitions are
+/// never mutated by the manager: ticking a box writes to
+/// `ManagerChecklistCompletion` instead, so a task is pending again the next day.
+model ManagerChecklistItem {
+  id          String                       @id @default(cuid())
+  propertyId  String
+  title       String
+  description String?
+  /// Persisted display order (0-based). Managers always receive this order.
+  sortOrder   Int                          @default(0)
+  /// Disabled items stop appearing in NEW manager sessions; historical
+  /// completions are untouched.
+  isActive    Boolean                      @default(true)
+  /// Soft deletion. A hard delete would orphan (or cascade away) past daily
+  /// completion records, so the row is retained and filtered out instead.
+  deletedAt   DateTime?
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+  property    Property                     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  completions ManagerChecklistCompletion[]
+
+  @@index([propertyId, sortOrder])
+}
+
+/// One manager's completion state for one checklist item on one calendar day.
+/// Uniqueness is (item, manager, day) so a re-tick updates the same row instead
+/// of appending a new one.
+model ManagerChecklistCompletion {
+  id          String             @id @default(cuid())
+  itemId      String
+  managerId   String
+  propertyId  String
+  /// Local calendar day in YYYY-MM-DD form. Stored as text (not @db.Date) so
+  /// the day a manager saw never shifts with the server's timezone.
+  dateKey     String
+  isCompleted Boolean            @default(false)
+  completedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  item        ManagerChecklistItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  manager     ManagerUser          @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  property    Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, managerId, dateKey])
+  @@index([propertyId, dateKey])
+  @@index([managerId, dateKey])
 }
 
 /// A single admin-defined “THE SPACE” card shown on the public property page.

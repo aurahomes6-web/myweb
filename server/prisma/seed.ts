@@ -4,6 +4,7 @@ import { PrismaClient } from '../src/generated/prisma/client.js'
 import { DEFAULT_CONTACT_SETTINGS } from '../src/services/contactService.js'
 import { DEFAULT_PAYMENT_SETTINGS } from '../src/services/paymentSettingsService.js'
 import { DEFAULT_HOMEPAGE_SETTINGS } from '../src/services/homepageSettingsService.js'
+import { hashManagerPassword, isValidManagerPasswordShape } from '../src/lib/managerAuth.js'
 
 const databaseUrl =
   process.env.DATABASE_URL ?? process.env.DIRECT_URL
@@ -94,6 +95,24 @@ const properties = [
   },
 ]
 
+/**
+ * The starter manager account.
+ *
+ * Credentials live in the DATABASE (hashed), never in frontend code: the seed
+ * creates the account, `POST /api/manager/login` verifies the hash. The default
+ * password below is only used when `MANAGER_DEFAULT_PASSWORD` is not set, and
+ * changing it here does nothing to an existing account — `update: {}` keeps the
+ * current password so a re-seed can never silently reset a live credential.
+ * Use `npm run db:manager-password` to change a password deliberately.
+ */
+const DEFAULT_MANAGER_USERNAME = 'manager'
+
+function managerPasswordToSeed(): string {
+  const fromEnv = process.env.MANAGER_DEFAULT_PASSWORD
+  if (typeof fromEnv === 'string' && isValidManagerPasswordShape(fromEnv)) return fromEnv
+  return 'manager'
+}
+
 async function main() {
   for (const property of properties) {
     await prisma.property.upsert({
@@ -142,8 +161,19 @@ async function main() {
     }),
     paymentSettingsPromise,
     homepageSettingsPromise,
+    // Only ever CREATED here — an existing manager keeps its password.
+    prisma.managerUser.upsert({
+      where: { username: DEFAULT_MANAGER_USERNAME },
+      update: {},
+      create: {
+        username: DEFAULT_MANAGER_USERNAME,
+        displayName: 'Manager',
+        passwordHash: hashManagerPassword(managerPasswordToSeed()),
+        isActive: true,
+      },
+    }),
   ])
-  console.log(`Seeded ${count} properties + singleton settings rows.`)
+  console.log(`Seeded ${count} properties + singleton settings rows + default manager account.`)
 }
 
 main()

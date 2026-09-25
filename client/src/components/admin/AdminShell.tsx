@@ -11,23 +11,29 @@ import { CouponsTab } from '@/components/admin/CouponsTab'
 import { ContactTab } from '@/components/admin/ContactTab'
 import { CleanupTab } from '@/components/admin/CleanupTab'
 import { BlockDatesTab } from '@/components/admin/BlockDatesTab'
+import { DetailsTab } from '@/components/admin/DetailsTab'
+import { ManagerTab } from '@/components/admin/ManagerTab'
 import { PaymentsTab } from '@/components/admin/PaymentsTab'
 import { PaymentSettingsTab } from '@/components/admin/PaymentSettingsTab'
 import { adminLogout } from '@/services/admin'
 import { cn } from '@/lib/cn'
 
+// Order is intentional and stable. `Manager` configures the manager checklist;
+// it is NOT a link to the manager panel, which stays unlinked everywhere.
 const tabs = [
   { to: '/admin', label: 'Bookings', end: true },
   { to: '/admin/payments', label: 'Payments', end: false },
   { to: '/admin/payment-settings', label: 'Payment Settings', end: false },
   { to: '/admin/airbnb', label: 'Airbnb', end: false },
   { to: '/admin/properties', label: 'Properties', end: false },
-  { to: '/admin/block-dates', label: 'Block Dates', end: false },
   { to: '/admin/homepage', label: 'Homepage', end: false },
   { to: '/admin/marquee-notifications', label: 'Marquee', end: false },
   { to: '/admin/coupons', label: 'Coupons', end: false },
   { to: '/admin/contact', label: 'Contact', end: false },
   { to: '/admin/cleanup', label: 'Cleanup', end: false },
+  { to: '/admin/block-dates', label: 'Block Dates', end: false },
+  { to: '/admin/details', label: 'Details', end: false },
+  { to: '/admin/manager', label: 'Manager', end: false },
 ]
 
 interface AdminShellProps {
@@ -236,8 +242,10 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
           <Route path="payments" element={<PaymentsTab />} />
           <Route path="payment-settings" element={<PaymentSettingsTab />} />
           <Route path="airbnb" element={<AirbnbTab />} />
-           <Route path="properties" element={<PropertiesTab />} />
-           <Route path="block-dates" element={<BlockDatesTab />} />
+          <Route path="properties" element={<PropertiesTab />} />
+          <Route path="block-dates" element={<BlockDatesTab />} />
+          <Route path="details" element={<DetailsTab />} />
+          <Route path="manager" element={<ManagerTab />} />
           <Route path="homepage" element={<HomepageSettingsTab />} />
           <Route path="marquee-notifications" element={<MarqueeNotificationsTab />} />
           <Route path="coupons" element={<CouponsTab />} />

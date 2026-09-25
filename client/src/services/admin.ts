@@ -14,6 +14,9 @@ import type {
   AdminImageSlot,
   AdminMarqueeNotification,
   AdminMarqueeNotificationPayload,
+  AdminManagerChecklistItem,
+  AdminManagerChecklistItemInput,
+  AdminManagerChecklistItemUpdate,
   AdminPayment,
   AdminPaymentSettings,
   AdminProperty,
@@ -439,6 +442,65 @@ export async function deleteAdminMarqueeNotification(id: string): Promise<void> 
   await request<{ deleted: true }>(`/marquee-notifications/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
+}
+
+// ── manager checklist configuration (Admin → Manager) ──────────────────────
+//
+// This is CONFIGURATION for the manager panel. It deliberately contains no link
+// or button into /manager: the manager panel is intentionally unlinked and is
+// only reachable by typing the path.
+
+export async function fetchAdminManagerChecklist(
+  propertyId: string
+): Promise<AdminManagerChecklistItem[]> {
+  const body = await request<{ items: AdminManagerChecklistItem[] }>(
+    `/manager/checklist/${encodeURIComponent(propertyId)}`
+  )
+  return body.items
+}
+
+export async function createAdminManagerChecklistItem(
+  propertyId: string,
+  payload: AdminManagerChecklistItemInput
+): Promise<AdminManagerChecklistItem> {
+  const body = await request<{ item: AdminManagerChecklistItem }>(
+    `/manager/checklist/${encodeURIComponent(propertyId)}`,
+    { method: 'POST', body: JSON.stringify(payload) }
+  )
+  return body.item
+}
+
+export async function updateAdminManagerChecklistItem(
+  propertyId: string,
+  itemId: string,
+  payload: AdminManagerChecklistItemUpdate
+): Promise<AdminManagerChecklistItem> {
+  const body = await request<{ item: AdminManagerChecklistItem }>(
+    `/manager/checklist/${encodeURIComponent(propertyId)}/${encodeURIComponent(itemId)}`,
+    { method: 'PATCH', body: JSON.stringify(payload) }
+  )
+  return body.item
+}
+
+export async function deleteAdminManagerChecklistItem(
+  propertyId: string,
+  itemId: string
+): Promise<{ deleted: true; retainedCompletionRecords: number }> {
+  return request<{ deleted: true; retainedCompletionRecords: number }>(
+    `/manager/checklist/${encodeURIComponent(propertyId)}/${encodeURIComponent(itemId)}`,
+    { method: 'DELETE' }
+  )
+}
+
+export async function reorderAdminManagerChecklist(
+  propertyId: string,
+  ids: string[]
+): Promise<AdminManagerChecklistItem[]> {
+  const body = await request<{ items: AdminManagerChecklistItem[] }>(
+    `/manager/checklist/${encodeURIComponent(propertyId)}/reorder`,
+    { method: 'PUT', body: JSON.stringify({ ids }) }
+  )
+  return body.items
 }
 
 // ── UPI payments (Phase 7) ──────────────────────────────────────────────────
