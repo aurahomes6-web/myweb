@@ -9,7 +9,14 @@ const api = vi.hoisted(() => ({
   updateAdminMarqueeNotification: vi.fn(),
   reorderAdminMarqueeNotifications: vi.fn(),
   deleteAdminMarqueeNotification: vi.fn(),
-  AdminApiError: class AdminApiError extends Error {},
+  AdminApiError: class AdminApiError extends Error {
+    status: number
+
+    constructor(shape: { message: string; status: number }) {
+      super(shape.message)
+      this.status = shape.status
+    }
+  },
 }))
 
 vi.mock('@/services/admin', () => api)
@@ -121,5 +128,19 @@ describe('MarqueeNotificationsTab', () => {
 
     expect(await screen.findByText('Enter the notification text.')).toBeTruthy()
     expect(api.createAdminMarqueeNotification).not.toHaveBeenCalled()
+  })
+
+  it('explains a server failure without exposing internal response details', async () => {
+    api.fetchAdminMarqueeNotifications.mockRejectedValueOnce(
+      new api.AdminApiError({ message: 'Request failed. Please try again.', status: 500 })
+    )
+    render(<MarqueeNotificationsTab />)
+
+    expect(
+      await screen.findByText(
+        'The server could not load marquee notifications. Check the server logs and confirm the marquee notifications database migration is applied, then retry.'
+      )
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
   })
 })

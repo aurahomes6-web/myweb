@@ -24,7 +24,22 @@ const MAX_NOTIFICATION_LENGTH = 240
 
 function errorMessage(error: unknown): string {
   if (error instanceof AdminApiError) {
+    if (error.status === 401) {
+      return 'Your admin session is missing or has expired. Sign in again.'
+    }
+    if (error.status === 403) {
+      return 'The admin request was blocked by security checks. Reload the page and try again.'
+    }
+    if (error.status === 503) {
+      return 'Admin authentication is not configured on the server.'
+    }
+    if (error.status >= 500) {
+      return 'The server could not load marquee notifications. Check the server logs and confirm the marquee notifications database migration is applied, then retry.'
+    }
     return error.details?.[0]?.message ?? error.message
+  }
+  if (error instanceof TypeError) {
+    return 'Could not reach the server. Check your connection and try again.'
   }
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
 }
