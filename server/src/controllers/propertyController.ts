@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { PropertyImageKind } from '../generated/prisma/enums.js'
 import { prisma } from '../lib/db.js'
+import { propertyDisplayOrderBy } from '../lib/propertyOrder.js'
 
 export interface PublicPropertyImage {
   id: string
@@ -116,7 +117,7 @@ const propertyInclude = {
 
 export async function listPropertiesHandler(_req: Request, res: Response) {
   const properties = await prisma.property.findMany({
-    orderBy: { name: 'asc' },
+    orderBy: propertyDisplayOrderBy,
     include: propertyInclude,
   })
   res.json({ properties: properties.map(serializeProperty) })

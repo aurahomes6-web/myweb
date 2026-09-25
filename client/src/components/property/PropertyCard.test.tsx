@@ -181,10 +181,18 @@ describe('PropertyCard — nightly pricing', () => {
     expect(html).not.toContain('Offer price')
   })
 
-  it('shows Coming Soon and removes availability CTA for inactive homes', () => {
+  it('shows Coming Soon and no navigation or availability CTAs for inactive homes', () => {
     const html = render(makeProperty({ isActive: false }))
     expect(html).toContain('Coming soon')
+    expect(html).not.toContain('View Details')
     expect(html).not.toContain('Check Availability')
+    expect(html).not.toContain('/properties/aura-cozy-penthouse-1')
+  })
+
+  it('keeps both CTAs for active homes', () => {
+    const html = render(makeProperty({ isActive: true }))
+    expect(html).toContain('View Details')
+    expect(html).toContain('Check Availability')
   })
 
   it('shows the effective rate with the original rate crossed out', () => {

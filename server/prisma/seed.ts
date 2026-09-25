@@ -27,6 +27,7 @@ const properties = [
       'Panoramic views, a private terrace, and curated interiors above the city.',
     capacity: 4,
     isActive: true,
+    sortOrder: 1,
     amenities: [
       'Free Wi-Fi',
       'Smart TV',
@@ -51,6 +52,7 @@ const properties = [
       'Sophisticated open-plan living with designer furnishings and ambient light.',
     capacity: 4,
     isActive: true,
+    sortOrder: 2,
     amenities: [
       'Free Wi-Fi',
       'Smart TV',
@@ -75,6 +77,7 @@ const properties = [
       'Contemporary warmth with rich textures and a homelike, peaceful atmosphere.',
     capacity: 6,
     isActive: true,
+    sortOrder: 3,
     amenities: [
       'Free Wi-Fi',
       'Smart TV',

@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { serializeProperty, type PublicSpaceAttribute } from '../src/controllers/propertyController.js'
+import { propertyDisplayOrderBy } from '../src/lib/propertyOrder.js'
 
 function baseRow(): Parameters<typeof serializeProperty>[0] {
   return {
@@ -24,6 +25,13 @@ function baseRow(): Parameters<typeof serializeProperty>[0] {
     discountedPricePerNightPaise: 240000,
   }
 }
+
+test('public property listings use the canonical display order', () => {
+  assert.deepStrictEqual(propertyDisplayOrderBy, [
+    { sortOrder: 'asc' },
+    { slug: 'asc' },
+  ])
+})
 
 test('serializeProperty exposes minGuests and maps maxGuests from capacity', () => {
   const serialized = serializeProperty(baseRow())

@@ -7,7 +7,7 @@ interface PropertyGridProps {
 
 export default function PropertyGrid({ items }: PropertyGridProps) {
   return (
-    <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+    <div className="grid min-w-0 grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
       {items.map((property, index) => (
         <PropertyCard key={property.id} property={property} index={index} />
       ))}

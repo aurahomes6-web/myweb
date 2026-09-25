@@ -12,6 +12,7 @@ import type { AirbnbDetailsInput, AirbnbGuestInput } from '../lib/airbnbValidati
 import type { PropertyUpdateInput } from '../lib/propertyValidation.js'
 import type { BookingDateBlockInput } from '../lib/bookingDateBlockValidation.js'
 import type { SpaceConfigInput } from '../lib/spaceValidation.js'
+import { propertyDisplayOrderBy } from '../lib/propertyOrder.js'
 import {
   collectConflicts,
   anyConflict,
@@ -752,7 +753,7 @@ export async function clearAllBookingData(client: PrismaClient): Promise<Cleanup
 
 export async function listProperties(client: PrismaClient): Promise<AdminPropertyDto[]> {
   const properties = await client.property.findMany({
-    orderBy: { name: 'asc' },
+    orderBy: propertyDisplayOrderBy,
     select: propertyFieldSelect,
   })
   return properties.map(serializePropertyRow)

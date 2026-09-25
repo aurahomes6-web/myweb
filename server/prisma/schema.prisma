@@ -23,6 +23,7 @@ model Property {
   bathrooms          Int?
   sqft               Int?
   isActive           Boolean             @default(true)
+  sortOrder          Int                 @default(0)
   amenities          String[]
   accent             String
   visual             String
@@ -41,6 +42,7 @@ model Property {
   bookingDateBlocks  BookingDateBlock[]
 
   @@index([slug])
+  @@index([sortOrder])
 }
 
 /// A single admin-defined “THE SPACE” card shown on the public property page.

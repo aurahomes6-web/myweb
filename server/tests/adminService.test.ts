@@ -21,6 +21,7 @@ import {
   getPropertySpace,
   listAirbnb,
   listBookings,
+  listProperties,
   updateAirbnb,
   updateBooking,
   updateProperty,
@@ -145,7 +146,15 @@ class FakeDb {
   property: any = {
     findMany: async ({ orderBy, select }: any = {}) => {
       let rows = [...this.properties]
-      if (orderBy && orderBy.createdAt === 'desc') rows.reverse()
+      if (Array.isArray(orderBy)) {
+        for (const rule of [...orderBy].reverse()) {
+          const key = Object.keys(rule)[0] as string
+          const direction = rule[key] === 'desc' ? -1 : 1
+          rows.sort((a, b) => String(a[key] ?? '').localeCompare(String(b[key] ?? '')) * direction)
+        }
+      } else if (orderBy && orderBy.createdAt === 'desc') {
+        rows.reverse()
+      }
       const project = (r: Record<string, unknown>) => {
         if (!select) return { ...r }
         const out: Record<string, unknown> = {}
@@ -461,6 +470,7 @@ function seedProperty(fake: FakeDb, overrides: Record<string, unknown> = {}) {
     capacity: 3,
     minGuests: 1,
     isActive: true,
+    sortOrder: 1,
     bedrooms: 1,
     beds: 2,
     bathrooms: 1,
@@ -1027,6 +1037,20 @@ test('listAirbnb masks Aadhaar while detail returns it in full', async () => {
   const detail = await getAirbnb(asClient(fake), created.id)
   assert.equal(detail.guests[0].aadhaarNumber, '123456789012')
   assert.equal(detail.guests[0].fullName, 'Jordan Lee')
+})
+
+test('admin property list keeps canonical order when a property is inactive', async () => {
+  const fake = makeDb()
+  seedProperty(fake, { id: 'prop-3', name: 'Aura Cozy Penthouse 3', slug: 'aura-cozy-penthouse-3', sortOrder: 3 })
+  seedProperty(fake, { id: 'prop-1', name: 'Aura Cozy Penthouse 1', slug: 'aura-cozy-penthouse-1', sortOrder: 1 })
+  seedProperty(fake, { id: 'prop-2', name: 'Aura Cozy Penthouse 2', slug: 'aura-cozy-penthouse-2', sortOrder: 2, isActive: false })
+
+  const properties = await listProperties(asClient(fake))
+  assert.deepStrictEqual(properties.map((property) => property.name), [
+    'Aura Cozy Penthouse 1',
+    'Aura Cozy Penthouse 2',
+    'Aura Cozy Penthouse 3',
+  ])
 })
 
 test('updateProperty persists editable fields including facilities', async () => {

@@ -49,7 +49,7 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] }}
       viewport={{ once: true, margin: '-60px' }}
-      className="group card-surface relative flex flex-col overflow-hidden rounded-card transition-transform duration-500 hover:-translate-y-2 hover:shadow-card-hover"
+      className="group card-surface relative flex min-w-0 flex-col overflow-hidden rounded-card transition-transform duration-500 hover:-translate-y-2 hover:shadow-card-hover"
       style={{ transitionProperty: 'transform, box-shadow, border-color' }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent.main} 45%, transparent)`
@@ -72,10 +72,10 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col p-6 lg:p-7">
-        <h3 className="font-display text-xl font-semibold tracking-tight text-text-primary lg:text-[22px]">
+        <h3 className="break-words font-display text-xl font-semibold tracking-tight text-text-primary lg:text-[22px]">
           {property.name}
         </h3>
-        <p className="mt-2.5 text-sm leading-relaxed text-text-secondary">
+        <p className="mt-2.5 break-words text-sm leading-relaxed text-text-secondary">
           {property.shortDescription}
         </p>
 
@@ -88,9 +88,9 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           {visibleSpecs.map(({ icon: Icon, value, key }) => (
-            <div key={key} className="flex items-center gap-2 text-[13px] text-text-muted">
+            <div key={key} className="flex min-w-0 items-center gap-2 text-[13px] text-text-muted">
               <Icon size={15} style={{ color: accent.main }} strokeWidth={2} />
-              <span>{value}</span>
+              <span className="min-w-0 break-words">{value}</span>
             </div>
           ))}
         </div>
@@ -99,16 +99,16 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
           {property.amenities.slice(0, 4).map((amenity) => (
             <span
               key={amenity}
-              className="rounded-full border border-surface-300/50 bg-surface-100/50 px-3 py-1 text-[11px] text-text-muted"
+              className="max-w-full break-words rounded-full border border-surface-300/50 bg-surface-100/50 px-3 py-1 text-[11px] text-text-muted"
             >
               {amenity}
             </span>
           ))}
         </div>
 
-        <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="mt-6 flex min-w-0 flex-wrap items-center justify-between gap-2 gap-y-2">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Nightly rate</p>
-          <div className="text-right">
+          <div className="min-w-0 text-right">
             <p className="font-display text-xl font-bold tracking-tight text-text-primary">
               {formatINR(pricing.effectivePricePaise)}
               <span className="ml-1 text-xs font-medium text-text-muted">/ night</span>
@@ -128,35 +128,36 @@ export default function PropertyCard({ property, index }: PropertyCardProps) {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col items-end gap-2.5">
-          {property.isActive === false && (
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5">
+          {property.isActive === false ? (
             <span className="w-full rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
               Coming soon
             </span>
-          )}
-          <Link
-            to={`/properties/${property.slug}`}
-            className={cn(
-              'group/btn relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-full py-3.5',
-              'text-sm font-semibold uppercase tracking-[0.14em] text-ink',
-              'bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left',
-              'transition-all duration-500 hover:bg-right hover:shadow-glow-magenta'
-            )}
-          >
-            View Details
-            <ArrowRight size={15} className="transition-transform duration-300 group-hover/btn:translate-x-1" />
-          </Link>
-          {property.isActive !== false && (
-            <Link
-              to={`/properties/${property.slug}#availability`}
-              className={cn(
-                'inline-flex w-full items-center justify-center gap-2 rounded-full border border-surface-300/70 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-text-secondary',
-                'transition-all duration-300 hover:border-purple/45 hover:text-text-primary hover:shadow-glow-purple'
-              )}
-            >
-              <MapPin size={14} className="opacity-90" />
-              Check Availability
-            </Link>
+          ) : (
+            <>
+              <Link
+                to={`/properties/${property.slug}`}
+                className={cn(
+                  'group/btn relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-full py-3.5',
+                  'text-sm font-semibold uppercase tracking-[0.14em] text-ink',
+                  'bg-gradient-to-r from-purple via-magenta to-cyan bg-[length:200%_100%] bg-left',
+                  'transition-all duration-500 hover:bg-right hover:shadow-glow-magenta'
+                )}
+              >
+                View Details
+                <ArrowRight size={15} className="transition-transform duration-300 group-hover/btn:translate-x-1" />
+              </Link>
+              <Link
+                to={`/properties/${property.slug}#availability`}
+                className={cn(
+                  'inline-flex w-full items-center justify-center gap-2 rounded-full border border-surface-300/70 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-text-secondary',
+                  'transition-all duration-300 hover:border-purple/45 hover:text-text-primary hover:shadow-glow-purple'
+                )}
+              >
+                <MapPin size={14} className="opacity-90" />
+                Check Availability
+              </Link>
+            </>
           )}
         </div>
       </div>
