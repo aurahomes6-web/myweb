@@ -22,14 +22,41 @@ vi.mock('@/components/admin/BlockDatesTab', () => ({ BlockDatesTab: () => <div>B
 vi.mock('@/components/admin/DetailsTab', () => ({ DetailsTab: () => <div>Details tab</div> }))
 vi.mock('@/components/admin/ManagerTab', () => ({ ManagerTab: () => <div>Manager tab</div> }))
 
-function renderShell() {
+function renderShell({ initialEntry = '/admin/coupons', onLoggedOut = vi.fn() } = {}) {
   return render(
-    <MemoryRouter initialEntries={['/admin/coupons']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
-        <Route path="/admin/*" element={<AdminShell onLoggedOut={vi.fn()} />} />
+        <Route path="/admin/*" element={<AdminShell onLoggedOut={onLoggedOut} />} />
       </Routes>
     </MemoryRouter>
   )
+}
+
+const PRIMARY_SECTIONS = ['Bookings', 'Payments', 'Payment Settings', 'Airbnb']
+const MORE_SECTIONS = [
+  'Properties',
+  'Homepage',
+  'Marquee',
+  'Coupons',
+  'Contact',
+  'Cleanup',
+  'Block Dates',
+  'Details',
+  'Manager',
+]
+
+function moreTrigger() {
+  return screen.getByRole('button', { name: 'More' })
+}
+
+async function openMoreMenu() {
+  fireEvent.click(moreTrigger())
+  return screen.findByRole('navigation', { name: 'More admin sections' })
+}
+
+/** The panel is only reachable through `aria-controls`, so this also proves the wiring. */
+function morePanel() {
+  return document.getElementById(moreTrigger().getAttribute('aria-controls') ?? '')
 }
 
 afterEach(() => {
@@ -131,5 +158,198 @@ describe('AdminShell navigation', () => {
     fireEvent.pointerDown(backdropDialog)
     await waitFor(() => expect(backdropDialog.isConnected).toBe(false))
     await waitFor(() => expect(document.activeElement === openButton).toBe(true))
+  })
+})
+
+describe('AdminShell desktop header', () => {
+  it('keeps only the four primary sections in the header row', () => {
+    renderShell()
+
+    const desktopNav = screen.getByRole('navigation', { name: 'Admin sections' })
+    expect([...desktopNav.querySelectorAll('a')].map((node) => node.textContent)).toEqual(PRIMARY_SECTIONS)
+    // The overflow trigger is a sibling of the nav, not one of its links.
+    expect(desktopNav.querySelector('button')).toBeNull()
+  })
+
+  it('puts every remaining section and sign out behind More, in order', async () => {
+    renderShell()
+    const menu = await openMoreMenu()
+
+    expect([...menu.querySelectorAll('a')].map((node) => node.textContent)).toEqual(MORE_SECTIONS)
+    // The panel order ends with sign out, so nothing was dropped in the move.
+    const panel = morePanel()
+    expect(panel).toBeTruthy()
+    expect([...(panel?.querySelectorAll('a, button') ?? [])].map((node) => node.textContent)).toEqual([
+      ...MORE_SECTIONS,
+      'Sign out',
+    ])
+  })
+
+  it('never removes a section: the header and More together cover every route', async () => {
+    renderShell()
+    const menu = await openMoreMenu()
+
+    const hrefs = [
+      ...screen.getByRole('navigation', { name: 'Admin sections' }).querySelectorAll('a'),
+      ...menu.querySelectorAll('a'),
+    ].map((node) => node.getAttribute('href'))
+
+    expect(hrefs).toEqual([
+      '/admin',
+      '/admin/payments',
+      '/admin/payment-settings',
+      '/admin/airbnb',
+      '/admin/properties',
+      '/admin/homepage',
+      '/admin/marquee-notifications',
+      '/admin/coupons',
+      '/admin/contact',
+      '/admin/cleanup',
+      '/admin/block-dates',
+      '/admin/details',
+      '/admin/manager',
+    ])
+    expect(within(menu).getByRole('link', { name: 'Manager' })).toBeTruthy()
+  })
+
+  it('never links to the manager panel from More', async () => {
+    renderShell()
+    await openMoreMenu()
+
+    // "Manager" here configures the checklist. The manager panel at /manager is
+    // reached by typing the path, so it must not appear as a link.
+    const panel = morePanel() as HTMLElement
+    expect(within(panel).getByRole('link', { name: 'Manager' }).getAttribute('href')).toBe('/admin/manager')
+    expect(panel.querySelector('a[href="/manager"]')).toBeNull()
+  })
+
+  it('marks the active section on the trigger and inside the menu', async () => {
+    renderShell({ initialEntry: '/admin/coupons' })
+    expect(moreTrigger().getAttribute('data-active')).toBe('true')
+
+    const menu = await openMoreMenu()
+    expect(within(menu).getByRole('link', { name: 'Coupons' }).getAttribute('aria-current')).toBe('page')
+    expect(within(menu).getByRole('link', { name: 'Details' }).getAttribute('aria-current')).toBeNull()
+
+    cleanup()
+    // A primary section must not light up the overflow trigger.
+    renderShell({ initialEntry: '/admin/payments' })
+    expect(moreTrigger().getAttribute('data-active')).toBe('false')
+    expect(
+      screen
+        .getByRole('navigation', { name: 'Admin sections' })
+        .querySelector('a[href="/admin/payments"]')
+        ?.getAttribute('aria-current')
+    ).toBe('page')
+  })
+
+  it('opens on click, toggles closed on a second click, and signals its state', async () => {
+    renderShell()
+    expect(moreTrigger().getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull()
+
+    await openMoreMenu()
+    expect(moreTrigger().getAttribute('aria-expanded')).toBe('true')
+
+    fireEvent.click(moreTrigger())
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull())
+    expect(moreTrigger().getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('moves focus into the menu and supports arrow-key navigation', async () => {
+    renderShell()
+    const trigger = moreTrigger()
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+
+    const menu = await screen.findByRole('navigation', { name: 'More admin sections' })
+    await waitFor(() =>
+      expect(document.activeElement === within(menu).getByRole('link', { name: 'Properties' })).toBe(true)
+    )
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    expect(document.activeElement === within(menu).getByRole('link', { name: 'Homepage' })).toBe(true)
+    fireEvent.keyDown(document, { key: 'ArrowUp' })
+    expect(document.activeElement === within(menu).getByRole('link', { name: 'Properties' })).toBe(true)
+  })
+
+  it('closes on Escape and hands focus back to the trigger', async () => {
+    renderShell()
+    const trigger = moreTrigger()
+    await openMoreMenu()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull())
+    await waitFor(() => expect(document.activeElement === trigger).toBe(true))
+  })
+
+  it('closes on an outside press but ignores presses inside the panel', async () => {
+    renderShell()
+    const menu = await openMoreMenu()
+
+    fireEvent.pointerDown(within(menu).getByRole('link', { name: 'Marquee' }))
+    expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeTruthy()
+
+    fireEvent.pointerDown(document.body)
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull())
+  })
+
+  it('closes after a section is selected and renders that section', async () => {
+    renderShell()
+    const menu = await openMoreMenu()
+
+    fireEvent.click(within(menu).getByRole('link', { name: 'Marquee' }))
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull())
+    expect(screen.getByText('Marquee tab')).toBeTruthy()
+
+    // Navigating to a primary section must dismiss it too.
+    await openMoreMenu()
+    fireEvent.click(screen.getByRole('navigation', { name: 'Admin sections' }).querySelector('a[href="/admin"]')!)
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull())
+    expect(screen.getByText('Bookings tab')).toBeTruthy()
+  })
+
+  it('signs out from More', async () => {
+    const onLoggedOut = vi.fn()
+    renderShell({ onLoggedOut })
+    await openMoreMenu()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await waitFor(() => expect(onLoggedOut).toHaveBeenCalledTimes(1))
+    expect(admin.adminLogout).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('navigation', { name: 'More admin sections' })).toBeNull()
+  })
+
+  it('drops the panel below the header and never scrolls the header sideways', async () => {
+    renderShell()
+    const desktopNav = screen.getByRole('navigation', { name: 'Admin sections' })
+    // No overflow wrapper: the row must fit rather than scroll.
+    expect(desktopNav.className).not.toContain('overflow')
+
+    await openMoreMenu()
+    const panelClass = morePanel()?.className ?? ''
+    // top-full from a full-height trigger puts the panel under the header bar
+    // instead of over it; right-0 keeps it on screen at narrow widths.
+    expect(panelClass).toContain('top-full')
+    expect(panelClass).toContain('right-0')
+    expect(panelClass).toContain('max-w-')
+  })
+
+  it('switches to the header row and the hamburger at one shared breakpoint', async () => {
+    renderShell()
+    const desktopNav = screen.getByRole('navigation', { name: 'Admin sections' })
+    const hamburger = screen.getByRole('button', { name: 'Open admin menu' })
+
+    // Both must flip on the same width, otherwise the header can show the full
+    // row and the hamburger at once (or neither).
+    expect(desktopNav.className).toContain('lg:flex')
+    expect(hamburger.className).toContain('lg:hidden')
+
+    // Opening More must not disturb the mobile drawer, and vice versa.
+    await openMoreMenu()
+    expect(screen.queryByRole('dialog', { name: 'Admin navigation' })).toBeNull()
+    fireEvent.click(hamburger)
+    expect(await screen.findByRole('dialog', { name: 'Admin navigation' })).toBeTruthy()
+    expect(screen.getByRole('navigation', { name: 'More admin sections' })).toBeTruthy()
   })
 })

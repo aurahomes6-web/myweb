@@ -16,10 +16,16 @@ import { ManagerTab } from '@/components/admin/ManagerTab'
 import { PaymentsTab } from '@/components/admin/PaymentsTab'
 import { PaymentSettingsTab } from '@/components/admin/PaymentSettingsTab'
 import { adminLogout } from '@/services/admin'
+import { AdminMoreMenu } from '@/components/admin/AdminMoreMenu'
 import { cn } from '@/lib/cn'
 
 // Order is intentional and stable. `Manager` configures the manager checklist;
 // it is NOT a link to the manager panel, which stays unlinked everywhere.
+//
+// This is the one source of truth for admin sections. The desktop header shows
+// the first four inline and the rest behind "More"; the mobile drawer shows all
+// of them in this exact order. Sections are only ever moved between those two
+// presentations, never removed.
 const tabs = [
   { to: '/admin', label: 'Bookings', end: true },
   { to: '/admin/payments', label: 'Payments', end: false },
@@ -35,6 +41,12 @@ const tabs = [
   { to: '/admin/details', label: 'Details', end: false },
   { to: '/admin/manager', label: 'Manager', end: false },
 ]
+
+// Desktop keeps only the four highest-traffic sections inline; everything else
+// is grouped under "More" so the header never squeezes or overlaps.
+const PRIMARY_TAB_COUNT = 4
+const primaryTabs = tabs.slice(0, PRIMARY_TAB_COUNT)
+const moreTabs = tabs.slice(PRIMARY_TAB_COUNT)
 
 interface AdminShellProps {
   onLoggedOut: () => void
@@ -118,10 +130,10 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
           </div>
 
           <nav
-            className="hidden min-w-0 flex-1 items-center justify-end gap-0.5 py-1 min-[1500px]:flex"
+            className="hidden min-w-0 flex-1 items-center justify-end gap-0.5 self-stretch lg:flex"
             aria-label="Admin sections"
           >
-            {tabs.map((tab) => (
+            {primaryTabs.map((tab) => (
               <NavLink
                 key={tab.to}
                 to={tab.to}
@@ -139,22 +151,14 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
                 {tab.label}
               </NavLink>
             ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void handleLogout()}
-              className="ml-1 shrink-0 px-3"
-              aria-label="Sign out"
-            >
-              <LogOut size={14} />
-              <span>Sign out</span>
-            </Button>
           </nav>
+
+          <AdminMoreMenu items={moreTabs} onSignOut={() => void handleLogout()} />
 
           <button
             ref={menuButtonRef}
             type="button"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-text-primary transition-colors hover:bg-surface-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-bright min-[1500px]:hidden"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-text-primary transition-colors hover:bg-surface-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-bright lg:hidden"
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Open admin menu"
             aria-expanded={mobileMenuOpen}
@@ -169,7 +173,7 @@ export function AdminShell({ onLoggedOut }: AdminShellProps) {
         <div
           ref={mobileDialogRef}
           id="admin-mobile-menu"
-          className="fixed inset-0 z-50 flex flex-col bg-surface/95 backdrop-blur-xl min-[1500px]:hidden"
+          className="fixed inset-0 z-50 flex flex-col bg-surface/95 backdrop-blur-xl lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-labelledby="admin-mobile-menu-title"

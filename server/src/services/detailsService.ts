@@ -218,7 +218,15 @@ function airbnbWhere(query: DetailsQuery) {
   return { AND: clauses }
 }
 
-const guestSelect = {
+/**
+ * Guest columns for NORMAL bookings (`Guest`).
+ *
+ * The two guest tables are NOT identical: `AirbnbGuest` has no `phone` and no
+ * `isPrimary`. Selecting either column on the wrong model makes Prisma reject
+ * the whole query with a validation error, so each source gets its own select
+ * and `normalizeAirbnb` fills the missing fields in the presentation shape.
+ */
+const bookingGuestSelect = {
   id: true,
   fullName: true,
   aadhaarNumber: true,
@@ -226,6 +234,14 @@ const guestSelect = {
   age: true,
   phone: true,
   isPrimary: true,
+} as const
+
+const airbnbGuestSelect = {
+  id: true,
+  fullName: true,
+  aadhaarNumber: true,
+  gender: true,
+  age: true,
 } as const
 
 const propertySelect = { id: true, name: true, slug: true } as const
@@ -276,14 +292,13 @@ interface RawAirbnb {
   notes: string | null
   createdAt: Date
   property: { id: string; name: string; slug: string } | null
+  /** Mirrors `AirbnbGuest`: no `phone`, no `isPrimary`. */
   guestRecords: Array<{
     id: string
     fullName: string
     aadhaarNumber: string
     gender: GuestGender
     age: number
-    phone: string | null
-    isPrimary: boolean
   }>
 }
 
@@ -331,7 +346,14 @@ function normalizeBooking(row: RawBooking): DetailsRecord {
 }
 
 function normalizeAirbnb(row: RawAirbnb): DetailsRecord {
-  const guests: DetailsGuest[] = row.guestRecords.map((guest) => ({ ...guest }))
+  // `AirbnbGuest` stores no per-guest phone and no primary flag. The first row
+  // is presented as the lead guest (it is also what the row-level guest name
+  // uses); the reservation's own `primaryPhone` is the only phone on record.
+  const guests: DetailsGuest[] = row.guestRecords.map((guest, index) => ({
+    ...guest,
+    phone: null,
+    isPrimary: index === 0,
+  }))
   const primary = guests[0] ?? null
 
   return {
@@ -532,7 +554,7 @@ export async function queryDetails(
             createdAt: true,
             notes: true,
             property: { select: propertySelect },
-            guestRecords: { orderBy: { createdAt: 'asc' }, select: guestSelect },
+            guestRecords: { orderBy: { createdAt: 'asc' }, select: bookingGuestSelect },
           },
         })
       : Promise.resolve([] as RawBooking[]),
@@ -553,7 +575,7 @@ export async function queryDetails(
             notes: true,
             createdAt: true,
             property: { select: propertySelect },
-            guestRecords: { orderBy: { createdAt: 'asc' }, select: guestSelect },
+            guestRecords: { orderBy: { createdAt: 'asc' }, select: airbnbGuestSelect },
           },
         })
       : Promise.resolve([] as RawAirbnb[]),

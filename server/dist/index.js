@@ -12,6 +12,7 @@ import paymentSettingsRoutes from './routes/paymentSettings.js';
 import homepageSettingsRoutes from './routes/homepageSettings.js';
 import marqueeNotificationRoutes from './routes/marqueeNotifications.js';
 import adminRoutes from './routes/admin.js';
+import managerRoutes from './routes/manager.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
@@ -27,6 +28,7 @@ app.use('/api/payment-settings', paymentSettingsRoutes);
 app.use('/api/homepage-settings', homepageSettingsRoutes);
 app.use('/api/marquee-notifications', marqueeNotificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/manager', managerRoutes);
 app.use((err, _req, res, _next) => {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
