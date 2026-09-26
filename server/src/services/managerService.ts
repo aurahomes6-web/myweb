@@ -1,6 +1,7 @@
 import type { PrismaClient } from '../generated/prisma/client.js'
 import { NotFoundError, BadRequestError } from './adminService.js'
 import { propertyDisplayOrderBy } from '../lib/propertyOrder.js'
+import { formatDateKey, todayKey } from '../lib/dateUtils.js'
 import { MAX_MANAGER_REPORT_LENGTH } from '../lib/managerChecklistValidation.js'
 import { getWhatsAppStatus } from './notificationService.js'
 
@@ -209,24 +210,40 @@ export function formatManagerReportTimestamp(
   return { date: `${parts.day}/${parts.month}/${parts.year}`, time }
 }
 
+/** '25/09/2026' (the IST stamp above) → '2026-09-25', for `formatDateKey`. */
+function istStampToDateKey(stamp: string): string {
+  const [day, month, year] = stamp.split('/')
+  return `${year}-${month}-${day}`
+}
+
 /**
  * The pre-filled manager report. Property, manager, date and time are
  * server-composed so the manager only types the report itself.
+ *
+ * `dateKey` is the checklist DAY the report is about, so a manager looking at
+ * 26 Sep can file it under 26 Sep even at midnight. It is rendered from the
+ * stored `YYYY-MM-DD` key via `formatDateKey`, never from a `Date` object, so
+ * UTC conversion can never shift the day. Omitting it falls back to the current
+ * IST calendar day.
  */
 export function buildManagerReportMessage(input: {
   propertyName: string
   managerUsername: string
   report: string
+  dateKey?: string
   at?: Date
 }): string {
-  const { date, time } = formatManagerReportTimestamp(input.at ?? new Date())
+  const stamp = formatManagerReportTimestamp(input.at ?? new Date())
+  const day = input.dateKey
+    ? formatDateKey(input.dateKey)
+    : formatDateKey(istStampToDateKey(stamp.date))
   return [
     'AURA HOMES — MANAGER REPORT',
     '',
+    `Date: ${day}`,
     `Property: ${input.propertyName}`,
     `Manager: ${input.managerUsername}`,
-    `Date: ${date}`,
-    `Time: ${time}`,
+    `Time: ${stamp.time}`,
     '',
     'Report:',
     input.report,
@@ -250,6 +267,7 @@ export function buildManagerReportUrl(input: {
   propertyName: string
   managerUsername: string
   report: string
+  dateKey?: string
   at?: Date
 }): { url: string; recipient: string; message: string } {
   const recipient = getManagerReportRecipient()
@@ -269,8 +287,8 @@ export function buildManagerReportUrl(input: {
  */
 export async function prepareManagerReport(
   client: PrismaClient,
-  input: { propertyId: string; managerUsername: string; report: string; at?: Date }
-): Promise<{ url: string; recipient: string; message: string; propertyName: string }> {
+  input: { propertyId: string; managerUsername: string; report: string; dateKey?: string; at?: Date }
+): Promise<{ url: string; recipient: string; message: string; propertyName: string; dateKey: string }> {
   const property = await client.property.findUnique({
     where: { id: input.propertyId },
     select: { id: true, name: true },
@@ -285,11 +303,13 @@ export async function prepareManagerReport(
     throw new BadRequestError(`Report must be ${MAX_MANAGER_REPORT_LENGTH} characters or fewer.`)
   }
 
+  const dateKey = input.dateKey ?? todayKey()
   const link = buildManagerReportUrl({
     propertyName: property.name,
     managerUsername: input.managerUsername,
     report,
+    dateKey,
     ...(input.at ? { at: input.at } : {}),
   })
-  return { ...link, propertyName: property.name }
+  return { ...link, propertyName: property.name, dateKey }
 }

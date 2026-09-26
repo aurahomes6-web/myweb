@@ -3,11 +3,12 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MS_PER_DAY = 86_400_000
 
 export function isDateString(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    DATE_RE.test(value) &&
-    !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`))
-  )
+  if (typeof value !== 'string' || !DATE_RE.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return false
+  // `Date` silently rolls impossible days forward (2026-02-31 becomes 3 Mar), so
+  // round-trip the key: a real calendar date always maps back to itself.
+  return date.toISOString().slice(0, 10) === value
 }
 
 /** Convert a local YYYY-MM-DD key into a UTC-midnight Date for Postgres DATE columns. */

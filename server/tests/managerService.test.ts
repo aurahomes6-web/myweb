@@ -456,7 +456,9 @@ test('the report message carries property, manager, IST date/time and the report
   assert.match(message, /^AURA HOMES — MANAGER REPORT/)
   assert.ok(message.includes('Property: Aura Cozy Penthouse 2'))
   assert.ok(message.includes('Manager: manager'))
-  assert.ok(message.includes('Date: 25/09/2026'))
+  // The day is rendered from the calendar day, not a raw Date, so it is readable
+  // and never shifted by UTC conversion.
+  assert.ok(message.includes('Date: 25 Sep 2026'), message)
   assert.ok(message.includes('Time: 10:35 PM'))
   assert.ok(message.includes('Report:\nPenthouse 2 bathroom tap is leaking.'))
 })

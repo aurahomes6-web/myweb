@@ -200,11 +200,16 @@ export const managerReportHandler = wrap(async (req: Request, res: Response) => 
   if (propertyId === '') {
     return void validationError(res, [{ field: 'propertyId', message: 'Choose a property first.' }])
   }
+  // The report is filed under the day the manager is looking at, so a night-shift
+  // report at 00:15 about "today" still carries today's date.
+  const parsedDate = parseChecklistDate(typeof body.date === 'string' ? body.date : '')
+  if (!parsedDate.ok) return void validationError(res, parsedDate.issues)
 
   const prepared = await prepareManagerReport(prisma, {
     propertyId,
     managerUsername: manager.username,
     report: parsedReport.value.message,
+    dateKey: parsedDate.value.dateKey,
   })
   res.json({ prepared })
 })
