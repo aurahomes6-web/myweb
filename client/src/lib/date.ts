@@ -67,6 +67,32 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ] as const
 
+const MONTHS_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+export function isISODate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false
+  const [y, m, d] = value.split('-').map(Number)
+  if (m < 1 || m > 12 || d < 1 || d > 31) return false
+  const date = fromISODate(value)
+  // Rejects overflow like 2026-02-31, which `new Date` would roll forward.
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d
+}
+
+/**
+ * '2026-09-26' → '26 Sep 2026'. Built from LOCAL parts (see `fromISODate`), so
+ * the day a manager picked is never shifted a day by UTC conversion.
+ */
+export function formatDayMonthYear(iso: string): string {
+  if (!isISODate(iso)) return iso
+  const date = fromISODate(iso)
+  return `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]} ${date.getFullYear()}`
+}
+
 export function formatMonthYear(date: Date): string {
   return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
 }

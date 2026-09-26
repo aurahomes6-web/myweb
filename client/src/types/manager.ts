@@ -53,6 +53,8 @@ export interface ManagerReportPrepared {
   recipient: string
   message: string
   propertyName: string
+  /** The checklist day the report was filed under (YYYY-MM-DD). */
+  dateKey: string
 }
 
 // ── admin-side checklist configuration (Admin → Manager) ────────────────────

@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, ChevronLeft, Loader2, LogOut, MessageCircle, Send } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { motion } from 'framer-motion'
+import {
+  CalendarDays,
+  CheckCircle2,
+  Loader2,
+  LogOut,
+  MessageCircle,
+  Send,
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
-import { TextArea } from '@/components/admin/AdminFormControls'
+import { Field, TextArea, TextInput } from '@/components/admin/AdminFormControls'
 import {
   ManagerApiError,
   fetchManagerChecklist,
@@ -14,43 +21,88 @@ import {
 } from '@/services/manager'
 import { MAX_MANAGER_REPORT_LENGTH } from '@/components/admin/managerLimits'
 import { cn } from '@/lib/cn'
+import { formatDayMonthYear, isISODate, toISODate, today } from '@/lib/date'
 import type { ManagerChecklist, ManagerProperty } from '@/types/manager'
 
 /**
- * The manager panel — a phone-first operational screen.
+ * The manager panel — a phone-first operational screen, DATE-FIRST.
  *
- * Order of the screen: property → today's checklist → progress → tasks → report
- * to admin → log out. No admin-style tables, large touch targets, and the only
- * data it can reach comes from the manager-only API.
+ * Order of the screen: date → property → checklist → progress → tasks → report
+ * to admin → log out. The checklist is gated on BOTH selections, so nothing
+ * about "today" or a home is ever assumed, and every tick is written against the
+ * exact (date, property, item, manager) the manager is looking at.
+ *
+ * No admin-style tables, large touch targets, and the only data it can reach
+ * comes from the manager-only API.
  */
+
+/** Keeps the selected day + home across a refresh; completion state lives on the server. */
+const SELECTION_KEY = 'aura:manager-selection'
+
+interface StoredSelection {
+  date: string
+  propertyId: string
+}
+
+function readStoredSelection(): StoredSelection {
+  try {
+    const raw = sessionStorage.getItem(SELECTION_KEY)
+    if (!raw) return { date: '', propertyId: '' }
+    const parsed = JSON.parse(raw) as Partial<StoredSelection>
+    const date = typeof parsed.date === 'string' && isISODate(parsed.date) ? parsed.date : ''
+    const propertyId = typeof parsed.propertyId === 'string' ? parsed.propertyId : ''
+    return { date, propertyId }
+  } catch {
+    return { date: '', propertyId: '' }
+  }
+}
+
 export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [properties, setProperties] = useState<ManagerProperty[]>([])
+  // '' means "not chosen yet" — deliberately NOT pre-filled with today, because
+  // the flow is date-first and the checklist must stay hidden until the manager commits.
+  const [selectedDate, setSelectedDate] = useState('')
   const [propertyId, setPropertyId] = useState('')
   const [checklist, setChecklist] = useState<ManagerChecklist | null>(null)
   const [whatsappConfigured, setWhatsappConfigured] = useState(true)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [booted, setBooted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingItemId, setPendingItemId] = useState<string | null>(null)
   const [report, setReport] = useState('')
   const [reportError, setReportError] = useState<string | null>(null)
   const [sendingReport, setSendingReport] = useState(false)
 
-  const loadChecklist = useCallback(async (id: string) => {
-    if (!id) {
+  // Guards against a slow response for an old selection overwriting a newer one.
+  const requestId = useRef(0)
+
+  const hasDate = selectedDate !== ''
+  const hasProperty = propertyId !== ''
+  const ready = hasDate && hasProperty
+
+  const loadChecklist = useCallback(async (date: string, id: string) => {
+    const token = (requestId.current += 1)
+    if (!date || !id) {
       setChecklist(null)
+      setLoading(false)
       return
     }
     setLoading(true)
     setError(null)
     try {
-      setChecklist(await fetchManagerChecklist(id))
+      const next = await fetchManagerChecklist(id, date)
+      if (token !== requestId.current) return
+      setChecklist(next)
     } catch (cause) {
+      if (token !== requestId.current) return
+      setChecklist(null)
       setError(message(cause))
     } finally {
-      setLoading(false)
+      if (token === requestId.current) setLoading(false)
     }
   }, [])
 
+  // Properties + WhatsApp availability, then restore the last day/home.
   useEffect(() => {
     let active = true
     Promise.all([fetchManagerProperties(), fetchManagerConfig()])
@@ -58,25 +110,59 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
         if (!active) return
         setProperties(list)
         setWhatsappConfigured(config.whatsappConfigured)
-        setPropertyId(list[0]?.id ?? '')
+        const stored = readStoredSelection()
+        // Functional updates: never discard a day/home the manager already picked
+        // while this request was in flight.
+        setSelectedDate((current) => current || stored.date)
+        setPropertyId((current) => current || (list.some((property) => property.id === stored.propertyId) ? stored.propertyId : ''))
+        setBooted(true)
       })
       .catch((cause: unknown) => {
         if (!active) return
         setError(message(cause))
-        setLoading(false)
+        setBooted(true)
       })
     return () => {
       active = false
     }
   }, [])
 
+  // A refresh keeps the day + home, so the state comes back from the server.
   useEffect(() => {
-    void loadChecklist(propertyId)
-  }, [propertyId, loadChecklist])
+    if (!booted) return
+    try {
+      if (selectedDate) {
+        sessionStorage.setItem(SELECTION_KEY, JSON.stringify({ date: selectedDate, propertyId }))
+      } else {
+        sessionStorage.removeItem(SELECTION_KEY)
+      }
+    } catch {
+      // A blocked/absent sessionStorage must never break the checklist.
+    }
+  }, [selectedDate, propertyId, booted])
+
+  useEffect(() => {
+    void loadChecklist(selectedDate, propertyId)
+  }, [selectedDate, propertyId, loadChecklist])
+
+  function chooseDate(next: string) {
+    setSelectedDate(next)
+    // Dropping the day hides the checklist; the home choice is kept so
+    // re-picking a day is one tap instead of two.
+    if (!next) {
+      requestId.current += 1
+      setChecklist(null)
+      setLoading(false)
+    }
+  }
 
   async function toggleItem(itemId: string, nextValue: boolean) {
     if (!checklist) return
     const previous = checklist
+    // Pin the write to the day/property actually on screen, in case the manager
+    // changes the selection while the request is in flight.
+    const date = checklist.dateKey
+    const property = checklist.propertyId
     // Optimistic tick: the box reacts instantly on a phone.
     setChecklist({
       ...checklist,
@@ -87,12 +173,15 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
     })
     setPendingItemId(itemId)
     try {
-      await setManagerChecklistCompletion(propertyId, itemId, nextValue, checklist.dateKey)
+      await setManagerChecklistCompletion(property, itemId, nextValue, date)
     } catch (cause) {
-      setChecklist(previous)
+      // Only roll back if this exact day/property is still displayed.
+      setChecklist((current) =>
+        current && current.dateKey === date && current.propertyId === property ? previous : current
+      )
       setError(message(cause))
     } finally {
-      setPendingItemId(null)
+      setPendingItemId((current) => (current === itemId ? null : current))
     }
   }
 
@@ -107,11 +196,15 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
       setReportError('Choose a property first.')
       return
     }
+    if (!selectedDate) {
+      setReportError('Choose a date first.')
+      return
+    }
 
     setSendingReport(true)
     setReportError(null)
     try {
-      const prepared = await prepareManagerReport(propertyId, text)
+      const prepared = await prepareManagerReport(propertyId, text, selectedDate)
       // Opens the AURA HOMES WhatsApp conversation with the report pre-filled.
       // The manager still taps send; nothing here claims it was delivered.
       window.open(prepared.url, '_blank', 'noopener,noreferrer')
@@ -159,34 +252,90 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
       </header>
 
       <main className="mx-auto flex max-w-2xl flex-col gap-5 px-5 py-6">
-        {/* 1 — property selection */}
-        <section className="flex flex-col gap-3">
-          <h1 className="font-display text-lg font-semibold text-text-primary">Properties</h1>
-          <div className="grid grid-cols-1 gap-3">
-            {properties.map((property) => {
-              const active = property.id === propertyId
-              return (
-                <button
-                  key={property.id}
-                  type="button"
-                  onClick={() => setPropertyId(property.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex min-h-16 items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left transition-colors',
-                    active
-                      ? 'border-purple/50 bg-purple/15'
-                      : 'border-surface-300/45 bg-surface-100/35'
-                  )}
-                >
-                  <span className="font-display text-base font-semibold text-text-primary">
-                    {property.name}
-                  </span>
-                  {active ? <CheckCircle2 size={20} className="shrink-0 text-purple-bright" /> : null}
-                </button>
-              )
-            })}
+        {/* The form only appears once the saved selection has been applied, so a
+            choice made mid-boot can never be silently overwritten. */}
+        {!booted ? (
+          <p className="glass p-5 text-sm text-text-muted" role="status">
+            Loading your homes…
+          </p>
+        ) : (
+          <>
+        {/* 1 — date comes first; nothing else is offered until it is chosen. */}
+        <section className="glass flex flex-col gap-3 p-5 shadow-card">
+          <h1 className="flex items-center gap-2 font-display text-lg font-semibold text-text-primary">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-purple/20 text-xs font-bold text-purple-bright">
+              1
+            </span>
+            Select Date
+          </h1>
+          <Field label="Select Date" hint="Past and future dates are both allowed.">
+            <TextInput
+              type="date"
+              value={selectedDate}
+              aria-label="Select Date"
+              onChange={(event) => chooseDate(event.target.value)}
+              className="min-h-14 text-base"
+            />
+          </Field>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => chooseDate(toISODate(today()))}
+            >
+              <CalendarDays size={15} />
+              Today
+            </Button>
+            {selectedDate ? (
+              <p className="text-sm text-text-secondary">Checklist day: {formatDayMonthYear(selectedDate)}</p>
+            ) : null}
           </div>
         </section>
+
+        {/* 2 — the homes only appear once a day is chosen, in the canonical order. */}
+        {hasDate ? (
+          <section className="glass flex flex-col gap-3 p-5 shadow-card">
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-text-primary">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-purple/20 text-xs font-bold text-purple-bright">
+                2
+              </span>
+              Select Property
+            </h2>
+            <div className="grid grid-cols-1 gap-3">
+              {properties.map((property) => {
+                const active = property.id === propertyId
+                const hint = propertyHint(property.slug)
+                return (
+                  <button
+                    key={property.id}
+                    type="button"
+                    onClick={() => setPropertyId(property.id)}
+                    aria-pressed={active}
+                    // The seed data gives every home the same display name, so the
+                    // label carries the home's own identity instead of reading as
+                    // "Aura Cozy Terrace Rooftop suitePenthouse 2".
+                    aria-label={`${property.name} (${hint})`}
+                    className={cn(
+                      'flex min-h-16 items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left transition-colors',
+                      active
+                        ? 'border-purple/50 bg-purple/15'
+                        : 'border-surface-300/45 bg-surface-100/35'
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-display text-base font-semibold break-words text-text-primary">
+                        {property.name}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-text-muted">{hint}</span>
+                    </span>
+                    {active ? <CheckCircle2 size={20} className="shrink-0 text-purple-bright" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {error ? (
           <p role="alert" className="rounded-xl border border-magenta/40 bg-magenta/10 px-4 py-3 text-sm text-magenta-bright">
@@ -194,34 +343,32 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
           </p>
         ) : null}
 
-        {/* 2 + 3 — today's checklist and progress */}
-        <AnimatePresence mode="wait">
-          {checklist ? (
+        {/* 3 — the checklist itself, only for a chosen day + home. */}
+        {ready ? (
+          loading && !checklist ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass flex items-center justify-center gap-3 rounded-3xl p-10 text-sm text-text-muted"
+            >
+              <Loader2 size={18} className="animate-spin" />
+              Loading checklist…
+            </motion.div>
+          ) : checklist ? (
             <motion.section
-              key={checklist.propertyId}
+              key={`${checklist.dateKey}:${checklist.propertyId}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="glass rounded-3xl p-5 shadow-card"
             >
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-lg font-semibold break-words text-text-primary">
-                  {checklist.propertyName}
-                </h2>
-                {propertyId !== properties[0]?.id ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPropertyId(properties[0]?.id ?? '')}
-                    aria-label="Back to first property"
-                  >
-                    <ChevronLeft size={15} />
-                  </Button>
-                ) : null}
-              </div>
-              <p className="mt-1 text-xs text-text-muted">
-                Today's checklist · {checklist.dateKey}
+              <h2 className="font-display text-lg font-semibold text-text-primary">
+                Checklist for:
+              </h2>
+              <p className="mt-1 text-sm text-text-secondary">{formatDayMonthYear(checklist.dateKey)}</p>
+              <p className="text-sm font-semibold break-words text-text-primary">
+                {checklist.propertyName}
               </p>
 
               <div className="mt-5">
@@ -251,12 +398,11 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
                 {allDone ? (
                   <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-cyan-bright">
                     <CheckCircle2 size={16} />
-                    All tasks completed for {checklist.propertyName}.
+                    All tasks completed for {formatDayMonthYear(checklist.dateKey)}.
                   </p>
                 ) : null}
               </div>
 
-              {/* 4 — tasks */}
               {checklist.items.length === 0 ? (
                 <p className="mt-5 rounded-2xl border border-surface-300/40 bg-surface-100/30 p-4 text-sm text-text-muted">
                   No tasks are configured for this property yet. Please contact the admin.
@@ -311,21 +457,32 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
                   ))}
                 </ul>
               )}
-            </motion.section>
-          ) : loading ? (
-            <div className="glass flex items-center justify-center gap-3 rounded-3xl p-10 text-sm text-text-muted">
-              <Loader2 size={18} className="animate-spin" />
-              Loading today&apos;s checklist…
-            </div>
-          ) : null}
-        </AnimatePresence>
+              </motion.section>
+            ) : null
+          ) : (
+            <motion.p
+              key="prompt"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass rounded-3xl p-6 text-center text-sm text-text-muted shadow-card"
+            >
+              Select a date and property to view the checklist.
+            </motion.p>
+          )}
 
-        {/* 5 — report to admin */}
+        {/* 4 — report to admin, filed under the same day + home. */}
         <section className="glass rounded-3xl p-5 shadow-card">
           <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-text-primary">
             <MessageCircle size={18} className="text-cyan-bright" />
             Report to admin
           </h2>
+          <p className="mt-1 text-xs text-text-muted">
+            {hasDate && hasProperty
+              ? `Filed under ${formatDayMonthYear(selectedDate)} · ${
+                  properties.find((property) => property.id === propertyId)?.name ?? ''
+                }`
+              : 'Choose a date and property first.'}
+          </p>
           <p className="mt-1 text-xs text-text-muted">
             {whatsappConfigured
               ? 'Opens WhatsApp with your message ready to send.'
@@ -352,7 +509,7 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
               type="submit"
               size="sm"
               className="w-full justify-center py-3"
-              disabled={sendingReport || !whatsappConfigured || !propertyId}
+              disabled={sendingReport || !whatsappConfigured || !ready}
             >
               {sendingReport ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -364,11 +521,13 @@ export function ManagerApp({ onLoggedOut }: { onLoggedOut: () => void }) {
           </form>
         </section>
 
-        {/* 6 — logout */}
+        {/* 5 — logout */}
         <Button variant="secondary" size="sm" className="w-full justify-center py-3" onClick={() => void handleLogout()}>
           <LogOut size={16} />
           Log out
         </Button>
+          </>
+        )}
       </main>
     </div>
   )
@@ -386,6 +545,16 @@ function withProgress(checklist: ManagerChecklist, nextValue: boolean): ManagerC
     remaining: Math.max(total - safeCompleted, 0),
     percent: total === 0 ? 0 : Math.round((safeCompleted / total) * 100),
   }
+}
+
+/**
+ * The seed data gives every home the same display name, so the slug's tail is
+ * shown as the disambiguator. This is presentation only — the database is not
+ * renamed and the canonical Penthouse 1 → 2 → 3 order is untouched.
+ */
+function propertyHint(slug: string): string {
+  const tail = slug.split('-').slice(-2).join(' ')
+  return tail.charAt(0).toUpperCase() + tail.slice(1)
 }
 
 function message(error: unknown): string {

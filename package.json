@@ -8,5 +8,18 @@
     "dev:server": "npm run dev --prefix server",
     "build": "npm run build --prefix client && npm run build --prefix server",
     "typecheck": "npm run typecheck --prefix client && npm run typecheck --prefix server"
-  }
+  },
+  "description": "",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aurahomes6-web/myweb.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aurahomes6-web/myweb/issues"
+  },
+  "homepage": "https://github.com/aurahomes6-web/myweb#readme"
 }

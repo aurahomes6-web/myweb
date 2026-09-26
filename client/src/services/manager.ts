@@ -119,14 +119,18 @@ export async function fetchManagerConfig(): Promise<ManagerConfig> {
  * Ask the server to compose the WhatsApp report. The returned URL opens the
  * AURA HOMES conversation with the message pre-filled — the manager still
  * presses send, and no delivery is claimed.
+ *
+ * `dateKey` is the checklist day the report is filed under, so the message names
+ * the same date the manager is looking at.
  */
 export async function prepareManagerReport(
   propertyId: string,
-  message: string
+  message: string,
+  dateKey?: string
 ): Promise<ManagerReportPrepared> {
   const body = await request<{ prepared: ManagerReportPrepared }>('/report', {
     method: 'POST',
-    body: JSON.stringify({ propertyId, message }),
+    body: JSON.stringify({ propertyId, message, ...(dateKey ? { date: dateKey } : {}) }),
   })
   return body.prepared
 }
